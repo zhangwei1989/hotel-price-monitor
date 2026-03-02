@@ -3,7 +3,7 @@ import { Button, Card, Input, Layout, Select, Space, Table, Tag, Typography } fr
 import { fetchTasks } from '../api/tasks';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
-import { Filters, SortBy, SortOrder } from '../components/Filters';
+import { Filters } from '../components/Filters';
 
 const { Header, Content } = Layout;
 
@@ -21,8 +21,8 @@ export default function Tasks() {
   const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
   const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
   const [belowTarget, setBelowTarget] = useState<string | undefined>(undefined);
-  const [sortBy, setSortBy] = useState<SortBy>('checkIn');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortBy, setSortBy] = useState<any>('checkIn');
+  const [sortOrder, setSortOrder] = useState<any>('asc');
   const [q, setQ] = useState('');
 
   const navigate = useNavigate();

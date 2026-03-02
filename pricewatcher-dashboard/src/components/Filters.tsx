@@ -4,6 +4,15 @@ import { DatePicker, InputNumber, Select, Space } from 'antd';
 export type SortBy = 'checkIn' | 'lastPrice' | 'lastCheckedAt' | 'createdAt';
 export type SortOrder = 'asc' | 'desc';
 
+// 兼容性：有时 HMR/优化会导致 type-only export 在运行时不可用
+// 这里补一个同名的 runtime export，避免 `does not provide an export named 'SortBy'`
+export const SortBy = {
+  checkIn: 'checkIn',
+  lastPrice: 'lastPrice',
+  lastCheckedAt: 'lastCheckedAt',
+  createdAt: 'createdAt',
+} as const;
+
 export function Filters(props: {
   city?: string;
   setCity: (v?: string) => void;
