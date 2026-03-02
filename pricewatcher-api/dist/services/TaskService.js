@@ -39,13 +39,28 @@ class TaskService {
                 return filter.belowTarget ? t.lastPrice < t.threshold.value : t.lastPrice >= t.threshold.value;
             });
         }
-        // sorting
+        // sorting (null-safe; nulls always last)
         const sortBy = filter.sortBy || 'checkIn';
         const sortOrder = filter.sortOrder || 'asc';
+        const dir = sortOrder === 'asc' ? 1 : -1;
+        const getSortable = (t) => {
+            const v = t?.[sortBy];
+            if (v == null)
+                return null;
+            // date-like string
+            if (typeof v === 'string' && /\d{4}-\d{2}-\d{2}/.test(v))
+                return v;
+            return v;
+        };
         tasks.sort((a, b) => {
-            const dir = sortOrder === 'asc' ? 1 : -1;
-            const av = a[sortBy];
-            const bv = b[sortBy];
+            const av = getSortable(a);
+            const bv = getSortable(b);
+            if (av == null && bv == null)
+                return 0;
+            if (av == null)
+                return 1; // null last
+            if (bv == null)
+                return -1;
             if (av === bv)
                 return 0;
             return av > bv ? dir : -dir;

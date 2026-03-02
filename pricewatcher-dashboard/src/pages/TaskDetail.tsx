@@ -45,6 +45,9 @@ export default function TaskDetail() {
             <>
               <Space style={{ marginBottom: 12 }}>
                 <PauseResumeButton id={task.id} enabled={(task.enabled ?? true) === true} onChanged={load} />
+                <Button size="small" onClick={() => navigator.clipboard.writeText(task.link || '')} disabled={!task.link}>
+                  复制携程链接
+                </Button>
               </Space>
               <Typography.Paragraph>
                 <b>城市：</b>{task.city} &nbsp; <b>房型：</b>{task.roomName}（{task.ratePlanHint}）

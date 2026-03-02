@@ -32,12 +32,30 @@
       "lastPrice": 672,
       "lastStatus": "at_threshold",
       "currentPriceOptions": [
-        {"price": 672, "description": "赠送礼品 特惠一口价"},
-        {"price": 673, "description": "赠送礼品 特惠一口价"},
-        {"price": 776, "description": "赠送礼品 早鸟优惠(原价¥863)"},
-        {"price": 778, "description": "赠送礼品 早鸟优惠(原价¥865)"},
-        {"price": 882, "description": "CITY WALK双人牛排套餐+洗衣折扣+滴滴券"},
-        {"price": 882, "description": "CITY WALK双人牛排套餐+滴滴券"}
+        {
+          "price": 672,
+          "description": "赠送礼品 特惠一口价"
+        },
+        {
+          "price": 673,
+          "description": "赠送礼品 特惠一口价"
+        },
+        {
+          "price": 776,
+          "description": "赠送礼品 早鸟优惠(原价¥863)"
+        },
+        {
+          "price": 778,
+          "description": "赠送礼品 早鸟优惠(原价¥865)"
+        },
+        {
+          "price": 882,
+          "description": "CITY WALK双人牛排套餐+洗衣折扣+滴滴券"
+        },
+        {
+          "price": 882,
+          "description": "CITY WALK双人牛排套餐+滴滴券"
+        }
       ],
       "history": [
         {
@@ -46,7 +64,9 @@
           "status": "below_threshold",
           "note": "首次检查,当前最低价¥672,等于目标价,继续监控是否进一步降价"
         }
-      ]
+      ],
+      "enabled": true,
+      "pausedAt": null
     }
   ]
 }
