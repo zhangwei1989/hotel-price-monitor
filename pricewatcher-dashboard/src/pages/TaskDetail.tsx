@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Layout, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Layout, Space, Table, Tag, Typography, List } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchHistory, fetchTask } from '../api/tasks';
 import { PauseResumeButton } from '../components/PauseResumeButton';
+import { PriceHistoryChart } from '../components/PriceHistoryChart';
 
 const { Header, Content } = Layout;
 
@@ -56,6 +57,25 @@ export default function TaskDetail() {
                 &nbsp; {task.lastPrice != null && task.lastPrice < task.threshold.value ? <Tag color="green">已低于目标</Tag> : <Tag color="blue">监控中</Tag>}
               </Typography.Paragraph>
             </>
+          )}
+
+          <Typography.Title level={5} style={{ marginTop: 24 }}>价格趋势</Typography.Title>
+          <PriceHistoryChart history={history as any} />
+
+          <Typography.Title level={5} style={{ marginTop: 24 }}>可选价格方案</Typography.Title>
+          {task?.currentPriceOptions?.length ? (
+            <List
+              size="small"
+              dataSource={task.currentPriceOptions}
+              renderItem={(it: any) => (
+                <List.Item>
+                  <b style={{ width: 90, display: 'inline-block' }}>¥{it.price}</b>
+                  <span style={{ color: '#666' }}>{it.description}</span>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <div style={{ color: '#888' }}>暂无</div>
           )}
 
           <Typography.Title level={5} style={{ marginTop: 24 }}>价格历史</Typography.Title>
