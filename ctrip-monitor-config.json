@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "globalSettings": {
+    "maxConcurrentTasks": 15,
+    "batchSize": 15,
+    "batchDelayMinutes": [5, 10],
+    "defaultFrequencyMinutes": 480,
+    "nightPauseHours": [2, 6],
+    "randomDelaySeconds": [1, 5],
+    "autoStopAfterCheckIn": true,
+    "retryPolicy": {
+      "maxRetries": 3,
+      "backoffMultiplier": 2,
+      "initialDelaySeconds": 60
+    }
+  },
+  "proxySettings": {
+    "enabled": false,
+    "proxies": [],
+    "rotationStrategy": "round-robin",
+    "healthCheckInterval": 3600
+  },
+  "scheduling": {
+    "priorityRules": [
+      {
+        "condition": "daysUntilCheckIn <= 2",
+        "frequencyMultiplier": 0.5,
+        "note": "入住前2天加密监控"
+      },
+      {
+        "condition": "daysUntilCheckIn > 7",
+        "frequencyMultiplier": 2,
+        "note": "入住前7天降频监控"
+      },
+      {
+        "condition": "priceStableHours >= 48",
+        "frequencyMultiplier": 1.5,
+        "note": "价格稳定48小时降频"
+      }
+    ],
+    "timeWindows": [
+      {"start": "08:00", "end": "11:00", "label": "早班"},
+      {"start": "14:00", "end": "17:00", "label": "午班"},
+      {"start": "20:00", "end": "23:00", "label": "晚班"}
+    ]
+  },
+  "notifications": {
+    "channels": ["feishu"],
+    "conditions": {
+      "priceDrop": true,
+      "priceThreshold": true,
+      "systemError": true,
+      "dailySummary": false
+    }
+  },
+  "performance": {
+    "maxTasksPerDay": 300,
+    "requestsPerHour": 50,
+    "successRateThreshold": 0.85
+  }
+}

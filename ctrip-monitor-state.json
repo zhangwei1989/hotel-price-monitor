@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "metadata": {
+    "totalTasks": 1,
+    "activeTasks": 1,
+    "lastSchedulerRun": null,
+    "schedulerEnabled": true
+  },
+  "monitors": [
+    {
+      "id": "cs-maqo-m1-20260305-20260306",
+      "type": "hotel",
+      "provider": "ctrip",
+      "hotelName": "长沙玛珂酒店",
+      "hotelId": "112974342",
+      "city": "长沙",
+      "checkIn": "2026-03-05",
+      "checkOut": "2026-03-06",
+      "nights": 1,
+      "roomName": "M1豪华大床房",
+      "ratePlanHint": "特惠一口价(不含早餐)",
+      "currency": "CNY",
+      "threshold": {
+        "type": "below",
+        "value": 672
+      },
+      "frequencyMinutes": 480,
+      "autoStopDate": "2026-03-06",
+      "link": "https://hotels.ctrip.com/hotels/detail/?cityEnName=Changsha&cityId=206&hotelId=112974342&checkIn=2026-03-05&checkOut=2026-03-06&adult=2&children=0&crn=1",
+      "createdAt": "2026-03-02T15:59:00.000Z",
+      "lastCheckedAt": "2026-03-02T08:00:00.000Z",
+      "lastPrice": 672,
+      "lastStatus": "at_threshold",
+      "currentPriceOptions": [
+        {"price": 672, "description": "赠送礼品 特惠一口价"},
+        {"price": 673, "description": "赠送礼品 特惠一口价"},
+        {"price": 776, "description": "赠送礼品 早鸟优惠(原价¥863)"},
+        {"price": 778, "description": "赠送礼品 早鸟优惠(原价¥865)"},
+        {"price": 882, "description": "CITY WALK双人牛排套餐+洗衣折扣+滴滴券"},
+        {"price": 882, "description": "CITY WALK双人牛排套餐+滴滴券"}
+      ],
+      "history": [
+        {
+          "ts": "2026-03-02T15:59:00.000Z",
+          "price": 672,
+          "status": "below_threshold",
+          "note": "首次检查,当前最低价¥672,等于目标价,继续监控是否进一步降价"
+        }
+      ]
+    }
+  ]
+}
