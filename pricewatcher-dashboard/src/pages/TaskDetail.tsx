@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, Layout, Space, Table, Tag, Typography, List } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchHistory, fetchTask } from '../api/tasks';
@@ -31,60 +31,66 @@ export default function TaskDetail() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>PriceWatcher Dashboard</Typography.Title>
+      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingInline: 24 }}>
+        <Typography.Title level={4} style={{ color: '#fff', margin: 0, letterSpacing: 0.2 }}>PriceWatcher</Typography.Title>
         <Button onClick={logout}>退出</Button>
       </Header>
       <Content style={{ padding: 24 }}>
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 12 }}>
           <Button onClick={() => navigate('/tasks')}>返回列表</Button>
         </Space>
 
-        <Card title={task ? task.hotelName : '任务详情'}>
+        <Card title={task ? task.hotelName : '任务详情'} styles={{ body: { padding: 16 } }}>
           {task && (
             <>
-              <Space style={{ marginBottom: 12 }}>
-                <PauseResumeButton id={task.id} enabled={(task.enabled ?? true) === true} onChanged={load} />
-                <Button size="small" onClick={() => navigator.clipboard.writeText(task.link || '')} disabled={!task.link}>
-                  复制携程链接
-                </Button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <Space size={8}>
+                  <PauseResumeButton id={task.id} enabled={(task.enabled ?? true) === true} onChanged={load} />
+                  <Button size="small" onClick={() => navigator.clipboard.writeText(task.link || '')} disabled={!task.link}>
+                    复制携程链接
+                  </Button>
+                </Space>
+                <Tag color={(task.enabled ?? true) ? 'blue' : 'default'}>{(task.enabled ?? true) ? '监控中' : '已暂停'}</Tag>
+              </div>
+
+              <Space wrap size={12} style={{ marginBottom: 8, color: '#6B7280' }}>
+                <span><b style={{ color: '#111827' }}>城市：</b>{task.city}</span>
+                <span><b style={{ color: '#111827' }}>房型：</b>{task.roomName}（{task.ratePlanHint}）</span>
+                <span><b style={{ color: '#111827' }}>日期：</b>{task.checkIn} → {task.checkOut}</span>
+                <span><b style={{ color: '#111827' }}>频率：</b>{task.frequencyMinutes} 分钟</span>
+                <span><b style={{ color: '#111827' }}>当前价：</b>{task.lastPrice == null ? '-' : `¥${task.lastPrice}`}</span>
+                <span><b style={{ color: '#111827' }}>目标价：</b>{`< ¥${task.threshold.value}`}</span>
               </Space>
-              <Typography.Paragraph>
-                <b>城市：</b>{task.city} &nbsp; <b>房型：</b>{task.roomName}（{task.ratePlanHint}）
-              </Typography.Paragraph>
-              <Typography.Paragraph>
-                <b>日期：</b>{task.checkIn} → {task.checkOut} &nbsp; <b>频率：</b>{task.frequencyMinutes} 分钟
-              </Typography.Paragraph>
-              <Typography.Paragraph>
-                <b>当前价：</b>{task.lastPrice == null ? '-' : `¥${task.lastPrice}`} &nbsp; <b>目标价：</b>{`< ¥${task.threshold.value}`}
-                &nbsp; {task.lastPrice != null && task.lastPrice < task.threshold.value ? <Tag color="green">已低于目标</Tag> : <Tag color="blue">监控中</Tag>}
-              </Typography.Paragraph>
+
+              <div style={{ marginBottom: 8 }}>
+                {task.lastPrice != null && task.lastPrice < task.threshold.value ? <Tag color="green">已低于目标</Tag> : <Tag color="blue">未低于目标</Tag>}
+              </div>
             </>
           )}
 
-          <Typography.Title level={5} style={{ marginTop: 24 }}>价格趋势</Typography.Title>
+          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>价格趋势</Typography.Title>
           <PriceHistoryChart history={history as any} />
 
-          <Typography.Title level={5} style={{ marginTop: 24 }}>可选价格方案</Typography.Title>
+          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>可选价格方案</Typography.Title>
           {task?.currentPriceOptions?.length ? (
             <List
               size="small"
               dataSource={task.currentPriceOptions}
               renderItem={(it: any) => (
-                <List.Item>
+                <List.Item style={{ paddingInline: 0 }}>
                   <b style={{ width: 90, display: 'inline-block' }}>¥{it.price}</b>
-                  <span style={{ color: '#666' }}>{it.description}</span>
+                  <span style={{ color: '#6B7280' }}>{it.description}</span>
                 </List.Item>
               )}
             />
           ) : (
-            <div style={{ color: '#888' }}>暂无</div>
+            <div style={{ color: '#9CA3AF' }}>暂无</div>
           )}
 
-          <Typography.Title level={5} style={{ marginTop: 24 }}>价格历史</Typography.Title>
+          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>价格历史</Typography.Title>
           <Table
             rowKey={(r) => r.ts}
-            size="small"
+            size="middle"
             dataSource={history.slice().reverse()}
             columns={[
               { title: '时间', dataIndex: 'ts' },

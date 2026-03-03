@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 export function PriceHistoryChart({ history }: { history: Array<{ ts: string; price: number | null }> }) {
   const points = useMemo(() => {

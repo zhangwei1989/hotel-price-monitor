@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { DatePicker, InputNumber, Select, Space } from 'antd';
 
 export type SortBy = 'checkIn' | 'lastPrice' | 'lastCheckedAt' | 'createdAt';

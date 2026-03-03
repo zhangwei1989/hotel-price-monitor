@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Layout, Select, Space, Table, Tag, Typography } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Card, Input, Layout, Space, Table, Tag, Typography } from 'antd';
 import { fetchTasks } from '../api/tasks';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
@@ -105,49 +105,55 @@ export default function Tasks() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>PriceWatcher Dashboard</Typography.Title>
+      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingInline: 24 }}>
+        <Typography.Title level={4} style={{ color: '#fff', margin: 0, letterSpacing: 0.2 }}>PriceWatcher</Typography.Title>
         <Button onClick={logout}>退出</Button>
       </Header>
       <Content style={{ padding: 24 }}>
-        <Card>
-          <Space wrap style={{ marginBottom: 16 }}>
-            <Filters
-              city={city}
-              setCity={(v) => { setPage(1); setCity(v); }}
-              status={status}
-              setStatus={(v) => { setPage(1); setStatus(v); }}
-              enabled={enabled}
-              setEnabled={(v) => { setPage(1); setEnabled(v); }}
-              checkInRange={checkInRange}
-              setCheckInRange={(v) => { setPage(1); setCheckInRange(v); }}
-              priceMin={priceMin}
-              setPriceMin={(v) => { setPage(1); setPriceMin(v); }}
-              priceMax={priceMax}
-              setPriceMax={(v) => { setPage(1); setPriceMax(v); }}
-              belowTarget={belowTarget}
-              setBelowTarget={(v) => { setPage(1); setBelowTarget(v); }}
-              sortBy={sortBy}
-              setSortBy={(v) => { setPage(1); setSortBy(v); }}
-              sortOrder={sortOrder}
-              setSortOrder={(v) => { setPage(1); setSortOrder(v); }}
-              cityOptions={[...new Set(rows.map((r: any) => r.city))]}
-            />
-            <Input.Search
-              placeholder="搜索酒店名/房型"
-              style={{ width: 260 }}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onSearch={() => { setPage(1); load(); }}
-              allowClear
-            />
-            <Button onClick={() => {
-              setCity(undefined); setStatus(undefined); setEnabled(undefined);
-              setCheckInRange(undefined); setPriceMin(undefined); setPriceMax(undefined);
-              setBelowTarget(undefined); setSortBy('checkIn'); setSortOrder('asc');
-              setQ(''); setPage(1);
-            }}>重置</Button>
-          </Space>
+        <Card styles={{ body: { padding: 16 } }}>
+          {/* Toolbar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <Space wrap size={8}>
+              <Filters
+                city={city}
+                setCity={(v) => { setPage(1); setCity(v); }}
+                status={status}
+                setStatus={(v) => { setPage(1); setStatus(v); }}
+                enabled={enabled}
+                setEnabled={(v) => { setPage(1); setEnabled(v); }}
+                checkInRange={checkInRange}
+                setCheckInRange={(v) => { setPage(1); setCheckInRange(v); }}
+                priceMin={priceMin}
+                setPriceMin={(v) => { setPage(1); setPriceMin(v); }}
+                priceMax={priceMax}
+                setPriceMax={(v) => { setPage(1); setPriceMax(v); }}
+                belowTarget={belowTarget}
+                setBelowTarget={(v) => { setPage(1); setBelowTarget(v); }}
+                sortBy={sortBy}
+                setSortBy={(v) => { setPage(1); setSortBy(v); }}
+                sortOrder={sortOrder}
+                setSortOrder={(v) => { setPage(1); setSortOrder(v); }}
+                cityOptions={[...new Set(rows.map((r: any) => r.city))]}
+              />
+              <Input.Search
+                placeholder="搜索酒店名/房型"
+                style={{ width: 260 }}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onSearch={() => { setPage(1); load(); }}
+                allowClear
+              />
+            </Space>
+
+            <Space size={8}>
+              <Button onClick={() => {
+                setCity(undefined); setStatus(undefined); setEnabled(undefined);
+                setCheckInRange(undefined); setPriceMin(undefined); setPriceMax(undefined);
+                setBelowTarget(undefined); setSortBy('checkIn'); setSortOrder('asc');
+                setQ(''); setPage(1);
+              }}>重置</Button>
+            </Space>
+          </div>
 
           <Table
             rowKey="id"
