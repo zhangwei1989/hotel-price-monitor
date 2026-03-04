@@ -1,60 +1,111 @@
-:root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --primary: #3b82f6;
-  --accent: #fbbf24;
-  --text: #f8fafc;
-  --text-secondary: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
-  background-color: var(--bg);
-  background-image: radial-gradient(at top right, #1e293b, #0f172a);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 彻底杀掉 Ant Design 的白条头 */
-.ant-table-thead > tr > th {
-  background: rgba(30, 41, 59, 0.8) !important;
-  color: var(--text-secondary) !important;
-  border-bottom: 1px solid var(--border) !important;
-  font-weight: 500 !important;
-}
-
-.ant-table {
+/* Vercel-style table */
+.ant-table-wrapper .ant-table {
   background: transparent !important;
-  color: var(--text) !important;
 }
 
-.ant-table-tbody > tr > td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: #0a0a0a !important;
+  color: #888 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border-bottom: 1px solid #1f1f1f !important;
+  padding: 8px 16px !important;
 }
 
-.ant-table-row:hover > td {
-  background: rgba(255, 255, 255, 0.03) !important;
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  background: transparent !important;
+  border-bottom: 1px solid #1a1a1a !important;
+  padding: 14px 16px !important;
+  transition: background 0.1s;
 }
 
-/* 统一卡片质感 */
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #111 !important;
+}
+
+/* Vercel-style card */
 .ant-card {
-  background: rgba(30, 41, 59, 0.5) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border) !important;
-  border-radius: 16px !important;
+  background: #111 !important;
+  border: 1px solid #1f1f1f !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
 }
 
-.ant-statistic-title {
-  color: var(--text-secondary) !important;
+.ant-card .ant-card-body {
+  padding: 20px !important;
 }
 
-.ant-statistic-content {
-  color: var(--text) !important;
+/* Header */
+.ant-layout-header {
+  border-bottom: 1px solid #1a1a1a !important;
+  padding: 0 24px !important;
+  line-height: 64px !important;
 }
 
-.ant-tag {
+/* Input */
+.ant-input-affix-wrapper,
+.ant-input {
+  background: #111 !important;
+  border-color: #2a2a2a !important;
+}
+
+.ant-input-affix-wrapper:hover,
+.ant-input:hover {
+  border-color: #444 !important;
+}
+
+.ant-input-affix-wrapper:focus-within {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 1px #fff2 !important;
+}
+
+/* Button */
+.ant-btn {
   border-radius: 6px !important;
+  font-size: 13px !important;
+  height: 32px !important;
+}
+
+/* Statistic */
+.ant-statistic-title {
+  font-size: 12px !important;
+  color: #888 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px !important;
+}
+
+.ant-statistic-content-value {
+  font-size: 28px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.5px;
+}
+
+/* Tag */
+.ant-tag {
   border: none !important;
+  font-size: 12px !important;
+  border-radius: 4px !important;
+  padding: 1px 7px !important;
+}
+
+/* Pagination */
+.ant-pagination {
+  margin-top: 16px !important;
 }

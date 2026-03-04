@@ -1,46 +1,55 @@
 import type { ThemeConfig } from 'antd';
+import { theme as antTheme } from 'antd';
 
 export const theme: ThemeConfig = {
+  algorithm: antTheme.darkAlgorithm,
   token: {
-    colorPrimary: '#0066FF', // 更纯净的品牌蓝
+    colorPrimary: '#ffffff',
+    colorBgBase: '#000000',
+    colorBgContainer: '#111111',
+    colorBgElevated: '#1a1a1a',
+    colorBgLayout: '#0a0a0a',
+    colorBorder: '#2a2a2a',
+    colorBorderSecondary: '#1f1f1f',
+    colorText: '#ededed',
+    colorTextSecondary: '#888888',
+    colorTextTertiary: '#555555',
     borderRadius: 8,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif',
-    
-    // 中性色调优
-    colorTextBase: '#1d1d1f',
-    colorBgLayout: '#f5f5f7', // 苹果风的背景灰
-    
-    // 成功/警告/错误色
-    colorSuccess: '#34c759',
-    colorWarning: '#ff9500',
-    colorError: '#ff3b30',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Geist", "Segoe UI", Roboto, "PingFang SC", sans-serif',
   },
   components: {
     Layout: {
-      headerBg: '#ffffff',
-      headerColor: '#1d1d1f',
-      headerHeight: 64,
+      headerBg: '#000000',
+      bodyBg: '#0a0a0a',
     },
     Card: {
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-      borderRadiusLG: 12,
+      colorBgContainer: '#111111',
+      boxShadow: 'none',
+      borderRadiusLG: 8,
     },
     Table: {
-      headerBg: '#fbfbfb',
-      headerBorderRadius: 8,
+      headerBg: '#0a0a0a',
+      headerColor: '#888888',
+      borderColor: '#1f1f1f',
+      rowHoverBg: '#1a1a1a',
+      colorBgContainer: 'transparent',
     },
     Button: {
+      defaultBg: '#1a1a1a',
+      defaultColor: '#ededed',
+      defaultBorderColor: '#2a2a2a',
       fontWeight: 500,
-      borderRadius: 6,
     },
     Input: {
-      borderRadius: 6,
-    },
-    Select: {
-      borderRadius: 6,
+      colorBgContainer: '#111111',
+      colorBorder: '#2a2a2a',
+      colorTextPlaceholder: '#555555',
     },
     Tag: {
-      borderRadius: 4,
+      borderRadiusSM: 4,
+    },
+    Statistic: {
+      titleFontSize: 13,
     },
   },
 };
