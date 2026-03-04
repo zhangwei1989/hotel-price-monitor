@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Button, Layout, Typography } from 'antd';
 
 export default function Home() {

@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Layout, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Input, Layout, Row, Space, Table, Tag, Typography, Statistic, ConfigProvider, theme } from 'antd';
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  EyeOutlined,
+  LogoutOutlined,
+  DashboardOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  ThunderboltFilled,
+} from '@ant-design/icons';
 import { fetchTasks } from '../api/tasks';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
 
 const { Header, Content } = Layout;
+const { Title, Text } = Typography;
 
 export default function Tasks() {
   const [loading, setLoading] = useState(false);
@@ -13,16 +26,6 @@ export default function Tasks() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-
-  const [city, setCity] = useState<string | undefined>(undefined);
-  const [status, setStatus] = useState<string | undefined>(undefined);
-  const [enabled, setEnabled] = useState<string | undefined>(undefined);
-  const [checkInRange, setCheckInRange] = useState<[string, string] | undefined>(undefined);
-  const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
-  const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
-  const [belowTarget, setBelowTarget] = useState<string | undefined>(undefined);
-  const [sortBy, setSortBy] = useState<any>('checkIn');
-  const [sortOrder, setSortOrder] = useState<any>('asc');
   const [q, setQ] = useState('');
 
   const navigate = useNavigate();
@@ -30,21 +33,7 @@ export default function Tasks() {
   async function load() {
     setLoading(true);
     try {
-      const data = await fetchTasks({
-        page,
-        pageSize,
-        city,
-        status,
-        enabled: enabled ?? undefined,
-        checkInFrom: checkInRange?.[0],
-        checkInTo: checkInRange?.[1],
-        currentPriceMin: priceMin,
-        currentPriceMax: priceMax,
-        belowTarget: belowTarget ?? undefined,
-        sortBy,
-        sortOrder,
-        hotelName: q || undefined,
-      });
+      const data = await fetchTasks({ page, pageSize, hotelName: q || undefined });
       setRows(data.tasks);
       setTotal(data.total);
     } finally {
@@ -52,124 +41,93 @@ export default function Tasks() {
     }
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget, sortBy, sortOrder]);
+  useEffect(() => { load(); }, [page, pageSize]);
 
-  const columns = useMemo(
-    () => [
-      {
-        title: '酒店',
-        dataIndex: 'hotelName',
-        render: (_: any, r: any) => (
-          <div>
-            <div style={{ fontWeight: 600 }}>{r.hotelName}</div>
-            <div style={{ color: '#888' }}>{r.city} · {r.roomName}</div>
-          </div>
-        ),
-      },
-      { title: '日期', render: (_: any, r: any) => `${r.checkIn} → ${r.checkOut}` },
-      { title: '当前价', dataIndex: 'lastPrice', render: (v: any) => (v == null ? '-' : `¥${v}`) },
-      { title: '目标价', render: (_: any, r: any) => `< ¥${r.threshold?.value}` },
-      {
-        title: '状态',
-        dataIndex: 'lastStatus',
-        render: (s: string, r: any) => {
-          const isEnabled = (r.enabled ?? true) === true;
-          if (!isEnabled) return <Tag color="default">已暂停</Tag>;
-          const below = r.lastPrice != null && r.lastPrice < r.threshold.value;
-          if (below) return <Tag color="green">已低于目标</Tag>;
-          if (s === 'at_threshold') return <Tag color="gold">等于目标</Tag>;
-          return <Tag color="blue">监控中</Tag>;
-        },
-      },
-      {
-        title: '操作',
-        render: (_: any, r: any) => (
-          <Space>
-            <Button size="small" onClick={() => navigate(`/tasks/${r.id}`)}>详情</Button>
-            <PauseResumeButton id={r.id} enabled={(r.enabled ?? true) === true} onChanged={load} />
-          </Space>
-        ),
-      },
-    ],
-    [navigate]
-  );
+  const stats = useMemo(() => {
+    const monitoring = rows.filter(r => (r.enabled ?? true)).length;
+    const reached = rows.filter(r => r.lastPrice != null && r.lastPrice < r.threshold.value).length;
+    return { monitoring, reached };
+  }, [rows]);
 
-  function logout() {
-    localStorage.removeItem('pw_token');
-    sessionStorage.removeItem('pw_token');
-    window.location.href = '/login';
-  }
+  const columns = [
+    {
+      title: '酒店信息',
+      render: (_: any, r: any) => (
+        <Space direction="vertical" size={0}>
+          <Text strong style={{ color: '#fff', fontSize: 15 }}>{r.hotelName}</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{r.city} · {r.roomName}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '当前价格',
+      render: (_: any, r: any) => (
+        <Text strong style={{ color: r.lastPrice < r.threshold.value ? '#f59e0b' : '#fff', fontSize: 16 }}>
+          {r.lastPrice ? `¥${r.lastPrice}` : '-'}
+        </Text>
+      )
+    },
+    {
+      title: '目标价',
+      render: (_: any, r: any) => <Text style={{ color: 'rgba(255,255,255,0.45)' }}>{`< ¥${r.threshold.value}`}</Text>
+    },
+    {
+      title: '状态',
+      render: (_: any, r: any) => {
+        const below = r.lastPrice != null && r.lastPrice < r.threshold.value;
+        return below ? 
+          <Tag color="gold" icon={<ThunderboltFilled />}>达成</Tag> : 
+          <Tag color="processing" icon={<SyncOutlined spin />}>监控中</Tag>;
+      }
+    },
+    {
+      title: '操作',
+      align: 'right' as const,
+      render: (_: any, r: any) => (
+        <Button type="link" style={{ color: '#f59e0b' }} onClick={() => navigate(`/tasks/${r.id}`)}>详情</Button>
+      )
+    }
+  ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingInline: 24 }}>
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0, letterSpacing: 0.2 }}>PriceWatcher</Typography.Title>
-        <Button onClick={logout}>退出</Button>
-      </Header>
-      <Content style={{ padding: 24 }}>
-        <Card styles={{ body: { padding: 16 } }}>
-          {/* Toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-            <Space wrap size={8}>
-              <Filters
-                city={city}
-                setCity={(v) => { setPage(1); setCity(v); }}
-                status={status}
-                setStatus={(v) => { setPage(1); setStatus(v); }}
-                enabled={enabled}
-                setEnabled={(v) => { setPage(1); setEnabled(v); }}
-                checkInRange={checkInRange}
-                setCheckInRange={(v) => { setPage(1); setCheckInRange(v); }}
-                priceMin={priceMin}
-                setPriceMin={(v) => { setPage(1); setPriceMin(v); }}
-                priceMax={priceMax}
-                setPriceMax={(v) => { setPage(1); setPriceMax(v); }}
-                belowTarget={belowTarget}
-                setBelowTarget={(v) => { setPage(1); setBelowTarget(v); }}
-                sortBy={sortBy}
-                setSortBy={(v) => { setPage(1); setSortBy(v); }}
-                sortOrder={sortOrder}
-                setSortOrder={(v) => { setPage(1); setSortOrder(v); }}
-                cityOptions={[...new Set(rows.map((r: any) => r.city))]}
-              />
-              <Input.Search
-                placeholder="搜索酒店名/房型"
-                style={{ width: 260 }}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onSearch={() => { setPage(1); load(); }}
-                allowClear
-              />
-            </Space>
+    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#f59e0b' } }}>
+      <Layout style={{ minHeight: '100vh', background: '#000' }}>
+        <Header style={{ background: 'rgba(20,20,20,0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space>
+            <ThunderboltFilled style={{ color: '#f59e0b', fontSize: 24 }} />
+            <Title level={4} style={{ margin: 0, color: '#fff' }}>PriceWatcher <span style={{ color: '#f59e0b', fontSize: 12 }}>PRO</span></Title>
+          </Space>
+          <Button ghost danger icon={<LogoutOutlined />}>退出</Button>
+        </Header>
 
-            <Space size={8}>
-              <Button onClick={() => {
-                setCity(undefined); setStatus(undefined); setEnabled(undefined);
-                setCheckInRange(undefined); setPriceMin(undefined); setPriceMax(undefined);
-                setBelowTarget(undefined); setSortBy('checkIn'); setSortOrder('asc');
-                setQ(''); setPage(1);
-              }}>重置</Button>
-            </Space>
-          </div>
+        <Content style={{ padding: '32px' }}>
+          <Row gutter={24} style={{ marginBottom: 32 }}>
+            <Col span={8}>
+              <Card style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <Statistic title={<Text style={{ color: 'rgba(255,255,255,0.45)' }}>总监控</Text>} value={total} valueStyle={{ color: '#fff' }} />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <Statistic title={<Text style={{ color: 'rgba(255,255,255,0.45)' }}>监控中</Text>} value={stats.monitoring} valueStyle={{ color: '#3b82f6' }} />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <Statistic title={<Text style={{ color: 'rgba(255,255,255,0.45)' }}>已达成</Text>} value={stats.reached} valueStyle={{ color: '#f59e0b' }} />
+              </Card>
+            </Col>
+          </Row>
 
-          <Table
-            rowKey="id"
-            loading={loading}
-            columns={columns as any}
-            dataSource={rows}
-            pagination={{
-              total,
-              current: page,
-              pageSize,
-              showSizeChanger: true,
-              onChange: (p, ps) => { setPage(p); setPageSize(ps); },
-            }}
-          />
-        </Card>
-      </Content>
-    </Layout>
+          <Card style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between' }}>
+              <Input prefix={<SearchOutlined />} placeholder="输入酒店名称快速筛选..." style={{ width: 400, background: '#000', border: '1px solid rgba(255,255,255,0.1)' }} />
+              <Button icon={<ReloadOutlined />} onClick={load}>刷新数据</Button>
+            </div>
+            <Table columns={columns as any} dataSource={rows} pagination={false} rowClassName={() => 'dark-row'} />
+          </Card>
+        </Content>
+      </Layout>
+    </ConfigProvider>
   );
 }
