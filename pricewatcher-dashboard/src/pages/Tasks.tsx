@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
 import { AppLayout } from '../components/AppLayout';
+import { AddTaskModal } from '../components/AddTaskModal';
 
 export default function Tasks() {
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,7 @@ export default function Tasks() {
   const [q, setQ] = useState('');
   const [summary, setSummary] = useState<any>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const [city, setCity] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
@@ -220,6 +222,23 @@ export default function Tasks() {
             <Space size={8}>
               <Button icon={<ReloadOutlined />} onClick={resetFilters} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>重置</Button>
               <Button icon={<ReloadOutlined />} onClick={load} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>刷新</Button>
+              <button
+                onClick={() => setAddModalOpen(true)}
+                style={{
+                  height: 32, padding: '0 14px', borderRadius: 6,
+                  border: 'none', background: '#fff', color: '#000',
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#e5e5e5')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+                添加任务
+              </button>
             </Space>
           </div>
 
@@ -240,6 +259,12 @@ export default function Tasks() {
           />
         </Card>
       </div>
+
+      <AddTaskModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onCreated={() => { setPage(1); load(); }}
+      />
     </AppLayout>
   );
 }

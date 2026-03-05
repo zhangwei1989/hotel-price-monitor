@@ -1,5 +1,6 @@
 import express from 'express';
 import { taskService } from '../services/TaskService';
+import { validateCreateTask } from '../validators/taskValidator';
 
 const router = express.Router();
 
@@ -60,6 +61,10 @@ router.get('/:id', async (req, res) => {
 // POST /api/tasks
 router.post('/', async (req, res) => {
   try {
+    const errors = validateCreateTask(req.body);
+    if (errors.length > 0) {
+      return res.status(400).json({ error: errors[0].message, errors });
+    }
     const task = await taskService.createTask(req.body);
     res.status(201).json(task);
   } catch (err) {

@@ -30,3 +30,13 @@ export async function fetchHistory(taskId: string) {
   const resp = await http.get(`/api/prices/history/${taskId}`);
   return resp.data as { taskId: string; history: any[] };
 }
+
+export async function createTask(data: Partial<Task> & { [key: string]: any }) {
+  const resp = await http.post('/api/tasks', data);
+  return resp.data as Task;
+}
+
+export async function deleteTask(id: string) {
+  const resp = await http.delete(`/api/tasks/${id}`);
+  return resp.data as { ok: boolean };
+}
