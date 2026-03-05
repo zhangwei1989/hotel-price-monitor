@@ -243,6 +243,13 @@ export default function TaskDetail() {
                   <InfoRow label="房型" value={task.roomName} />
                   <InfoRow label="方案" value={task.ratePlanHint || '—'} />
                   <InfoRow label="最后检查" value={task.lastCheckedAt ? task.lastCheckedAt.replace('T', ' ').slice(0, 16) : '—'} />
+                  <InfoRow label="自动停止" value={
+                    task.autoStopDate
+                      ? <span style={{ color: new Date(task.autoStopDate) <= new Date(Date.now() + 3 * 86400000) ? '#f59e0b' : '#ededed' }}>
+                          {task.autoStopDate}
+                        </span>
+                      : <span style={{ color: '#444' }}>—</span>
+                  } />
                 </Card>
               </Col>
               <Col span={12}>

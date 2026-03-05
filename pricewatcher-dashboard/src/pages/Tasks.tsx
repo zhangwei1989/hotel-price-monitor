@@ -68,6 +68,12 @@ export default function Tasks() {
 
   useEffect(() => { load(); }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget, sortBy, sortOrder]);
 
+  // 自动刷新：每 60 秒 reload 一次（TASK-DASH-06）
+  useEffect(() => {
+    const timer = setInterval(() => load(), 60000);
+    return () => clearInterval(timer);
+  }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget, sortBy, sortOrder, q]);
+
   // 翻页/筛选变化时清空选中
   useEffect(() => { setSelectedIds([]); }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget]);
 
@@ -158,13 +164,22 @@ export default function Tasks() {
     },
     {
       title: '入住日期',
-      width: 160,
-      render: (_: any, r: any) => (
-        <div>
-          <div style={{ color: '#ededed', fontSize: 13 }}>{r.checkIn}</div>
-          <div style={{ color: '#666', fontSize: 11 }}>至 {r.checkOut}</div>
-        </div>
-      ),
+      width: 180,
+      render: (_: any, r: any) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const isExpiringSoon = r.autoStopDate && r.autoStopDate <= new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+        return (
+          <div>
+            <div style={{ color: '#ededed', fontSize: 13 }}>{r.checkIn}</div>
+            <div style={{ color: '#666', fontSize: 11 }}>至 {r.checkOut}</div>
+            {r.autoStopDate && (
+              <div style={{ fontSize: 11, marginTop: 2, color: isExpiringSoon ? '#f59e0b' : '#444' }}>
+                止 {r.autoStopDate}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '当前价格',
@@ -402,6 +417,42 @@ export default function Tasks() {
               onChange: keys => setSelectedIds(keys as string[]),
               columnWidth: 40,
               getCheckboxProps: () => ({ style: { accentColor: '#3b82f6' } }),
+            }}
+            locale={{
+              emptyText: !loading && rows.length === 0 ? (
+                <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12,
+                    background: '#1a1a1a', border: '1px solid #2a2a2a',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 16px',
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                        stroke="#444" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#ededed', marginBottom: 6 }}>
+                    暂无监控任务
+                  </div>
+                  <div style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
+                    添加第一个酒店价格监控任务，低于目标价时自动通知
+                  </div>
+                  <button
+                    onClick={() => setAddModalOpen(true)}
+                    style={{
+                      height: 34, padding: '0 20px', borderRadius: 6,
+                      border: 'none', background: '#fff', color: '#000',
+                      fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#e5e5e5')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  >
+                    + 添加任务
+                  </button>
+                </div>
+              ) : undefined,
             }}
             pagination={{
               total,
