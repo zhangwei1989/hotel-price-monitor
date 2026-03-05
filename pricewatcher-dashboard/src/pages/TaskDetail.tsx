@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import {
   Button, Card, Col, Row, Space,
   Table, Tag, Typography, List, Statistic,
-  Modal, InputNumber, message, Tooltip,
+  Modal, InputNumber, message, Tooltip, Popconfirm,
 } from 'antd';
 import {
   ArrowLeftOutlined, LinkOutlined,
   ThunderboltOutlined, CheckCircleFilled, SyncOutlined,
-  PauseCircleFilled, EditOutlined, ClockCircleOutlined,
+  PauseCircleFilled, EditOutlined, ClockCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchHistory, fetchTask } from '../api/tasks';
+import { fetchHistory, fetchTask, deleteTask } from '../api/tasks';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { checkNow, updateThreshold, updateFrequency } from '../api/taskActions';
@@ -91,6 +91,16 @@ export default function TaskDetail() {
     }
   }
 
+  async function handleDelete() {
+    try {
+      await deleteTask(id!);
+      message.success('任务已删除');
+      navigate('/tasks');
+    } catch {
+      message.error('删除失败');
+    }
+  }
+
   const isEnabled = task?.enabled ?? true;
   const below = task?.lastPrice != null && task?.lastPrice < task?.threshold?.value;
 
@@ -133,6 +143,21 @@ export default function TaskDetail() {
                   />
                 </Tooltip>
                 <PauseResumeButton id={task.id} enabled={isEnabled} onChanged={load} />
+                <Popconfirm
+                  title="确认删除此任务？"
+                  description="任务及所有历史数据将被永久删除，操作不可撤销"
+                  onConfirm={handleDelete}
+                  okText="确认删除"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button
+                    icon={<DeleteOutlined />}
+                    style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#ef4444', borderRadius: 6, fontSize: 13 }}
+                  >
+                    删除任务
+                  </Button>
+                </Popconfirm>
               </Space>
             </div>
 

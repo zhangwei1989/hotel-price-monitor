@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   Button, Card, Col, Input,
-  Row, Space, Table, Tag, Statistic, message,
+  Row, Space, Table, Tag, Statistic, message, Popconfirm,
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined,
   CheckCircleFilled, SyncOutlined, PauseCircleFilled,
-  EyeOutlined, ThunderboltOutlined,
+  EyeOutlined, ThunderboltOutlined, DeleteOutlined,
 } from '@ant-design/icons';
-import { fetchTasks } from '../api/tasks';
+import { fetchTasks, deleteTask } from '../api/tasks';
 import { checkNow, fetchSummary } from '../api/taskActions';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
@@ -77,6 +77,16 @@ export default function Tasks() {
       message.error('操作失败');
     } finally {
       setCheckingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteTask(id);
+      message.success('任务已删除');
+      load();
+    } catch {
+      message.error('删除失败');
     }
   }
 
@@ -156,6 +166,23 @@ export default function Tasks() {
             详情
           </Button>
           <PauseResumeButton id={r.id} enabled={(r.enabled ?? true) === true} onChanged={load} />
+          <Popconfirm
+            title="确认删除此任务？"
+            description="操作不可撤销"
+            onConfirm={() => handleDelete(r.id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+            overlayStyle={{ fontSize: 13 }}
+          >
+            <Button
+              size="small"
+              type="text"
+              icon={<DeleteOutlined />}
+              style={{ color: '#555' }}
+              onClick={e => e.stopPropagation()}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
