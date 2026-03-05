@@ -23,8 +23,10 @@
 |------|------|
 | [PRD-pricewatcher-api.md](./PRD-pricewatcher-api.md) | 后端需求文档：接口、字段、待开发功能 |
 | [PRD-pricewatcher-dashboard.md](./PRD-pricewatcher-dashboard.md) | 前端需求文档：页面结构、功能、设计规范 |
+| [PRD-hotel-price-monitor.md](./PRD-hotel-price-monitor.md) | 调度引擎需求文档：调度逻辑、适配器、飞书通知 |
 | [TASKS-pricewatcher-api.md](./TASKS-pricewatcher-api.md) | 后端开发任务列表（已完成 + 待开发 + 估时） |
 | [TASKS-pricewatcher-dashboard.md](./TASKS-pricewatcher-dashboard.md) | 前端开发任务列表（已完成 + 待开发 + 估时） |
+| [TASKS-hotel-price-monitor.md](./TASKS-hotel-price-monitor.md) | 调度引擎开发任务列表（已完成 + 待开发 + 估时） |
 
 ---
 
@@ -42,6 +44,21 @@
 - ❌ TASK-API-06：操作日志接口
 - ❌ TASK-API-07：state.json 自动备份
 - ❌ TASK-API-08：WebSocket 实时推送
+
+### hotel-price-monitor — 核心功能已完成
+
+待开发（按优先级）：
+
+- ❌ TASK-MON-01：通知卡片补充真实预订链接
+- ❌ TASK-MON-02：历史记录增加 note 字段
+- ❌ TASK-MON-03：确认单任务触发通知路径
+- ❌ TASK-MON-04：批次参数配置化
+- ❌ TASK-MON-05：适配器连续失败告警
+- ❌ TASK-MON-06：每日汇报增加昨日降价列表
+- ❌ TASK-MON-07：日志查询接口
+- ❌ TASK-MON-08：价格异常检测
+- ❌ TASK-MON-09：Amadeus 适配器完善
+- ❌ TASK-MON-10：state.json 并发写入保护
 
 ### PriceWatcher Dashboard — 基础功能已完成
 
@@ -64,4 +81,5 @@
 
 ## 下一步建议
 
-前端从 **TASK-DASH-01（添加任务 Modal）** 开始，同步进行 **TASK-API-02（字段校验）** 配合联调。
+**前端：** 从 **TASK-DASH-01（添加任务 Modal）** 开始，同步进行 **TASK-API-02（字段校验）** 配合联调。  
+**调度引擎：** 从 **TASK-MON-01（通知链接）** + **TASK-MON-03（验证通知路径）** 开始，确保通知功能完整可用。
