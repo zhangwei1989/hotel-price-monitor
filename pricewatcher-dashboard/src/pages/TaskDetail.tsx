@@ -1,27 +1,79 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Layout, Space, Table, Tag, Typography, List } from 'antd';
+import {
+  Button, Card, Col, Layout, Row, Space,
+  Table, Tag, Typography, List, Statistic,
+  Modal, InputNumber, message, Tooltip,
+} from 'antd';
+import {
+  ArrowLeftOutlined, LogoutOutlined, LinkOutlined,
+  ThunderboltOutlined, CheckCircleFilled, SyncOutlined,
+  PauseCircleFilled, EditOutlined,
+} from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchHistory, fetchTask } from '../api/tasks';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
+import { checkNow, updateThreshold } from '../api/taskActions';
 
 const { Header, Content } = Layout;
+const { Text } = Typography;
 
+// ── 小工具：Info 行 ───────────────────────────────────────────
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '8px 0', borderBottom: '1px solid #1a1a1a' }}>
+      <span style={{ color: '#555', fontSize: 12, width: 80, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: '#ededed', fontSize: 14 }}>{value}</span>
+    </div>
+  );
+}
+
+// ── 主页面 ────────────────────────────────────────────────────
 export default function TaskDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [task, setTask] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [checkingNow, setCheckingNow] = useState(false);
+  const [thresholdModal, setThresholdModal] = useState(false);
+  const [newThreshold, setNewThreshold] = useState<number | null>(null);
+  const [savingThreshold, setSavingThreshold] = useState(false);
 
   async function load() {
     if (!id) return;
-    const t = await fetchTask(id);
+    const [t, h] = await Promise.all([fetchTask(id), fetchHistory(id)]);
     setTask(t);
-    const h = await fetchHistory(id);
     setHistory(h.history || []);
   }
 
   useEffect(() => { load(); }, [id]);
+
+  async function handleCheckNow() {
+    setCheckingNow(true);
+    try {
+      await checkNow(id!);
+      message.success('已标记立即检查');
+    } catch {
+      message.error('操作失败');
+    } finally {
+      setCheckingNow(false);
+    }
+  }
+
+  async function handleSaveThreshold() {
+    if (!newThreshold || newThreshold <= 0) return;
+    setSavingThreshold(true);
+    try {
+      await updateThreshold(id!, newThreshold);
+      message.success(`目标价已更新为 ¥${newThreshold}`);
+      setThresholdModal(false);
+      load();
+    } catch {
+      message.error('更新失败');
+    } finally {
+      setSavingThreshold(false);
+    }
+  }
 
   function logout() {
     localStorage.removeItem('pw_token');
@@ -29,79 +81,225 @@ export default function TaskDetail() {
     window.location.href = '/login';
   }
 
+  const isEnabled = task?.enabled ?? true;
+  const below = task?.lastPrice != null && task?.lastPrice < task?.threshold?.value;
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingInline: 24 }}>
-        <Typography.Title level={4} style={{ color: '#fff', margin: 0, letterSpacing: 0.2 }}>PriceWatcher</Typography.Title>
-        <Button onClick={logout}>退出</Button>
-      </Header>
-      <Content style={{ padding: 24 }}>
-        <Space style={{ marginBottom: 12 }}>
-          <Button onClick={() => navigate('/tasks')}>返回列表</Button>
+    <Layout style={{ minHeight: '100vh', background: '#0a0a0a' }}>
+      {/* Header */}
+      <Header style={{
+        background: '#000',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '1px solid #1a1a1a',
+        padding: '0 32px',
+      }}>
+        <Space size={10}>
+          <div style={{ width: 22, height: 22, borderRadius: 5, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: '#000' }} />
+          </div>
+          <Text style={{ color: '#ededed', fontWeight: 600, fontSize: 15, letterSpacing: -0.3 }}>PriceWatcher</Text>
         </Space>
+        <Button type="text" icon={<LogoutOutlined />} onClick={logout} style={{ color: '#555', fontSize: 13 }}>退出</Button>
+      </Header>
 
-        <Card title={task ? task.hotelName : '任务详情'} styles={{ body: { padding: 16 } }}>
-          {task && (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-                <Space size={8}>
-                  <PauseResumeButton id={task.id} enabled={(task.enabled ?? true) === true} onChanged={load} />
-                  <Button size="small" onClick={() => navigator.clipboard.writeText(task.link || '')} disabled={!task.link}>
-                    复制携程链接
-                  </Button>
-                </Space>
-                <Tag color={(task.enabled ?? true) ? 'blue' : 'default'}>{(task.enabled ?? true) ? '监控中' : '已暂停'}</Tag>
+      <Content style={{ padding: '28px 40px' }}>
+        {/* 返回 */}
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/tasks')}
+          style={{ color: '#666', fontSize: 13, marginBottom: 20, padding: 0 }}
+        >
+          返回列表
+        </Button>
+
+        {task && (
+          <>
+            {/* 顶部：酒店名 + 操作按钮 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+              <div>
+                <div style={{ color: '#ededed', fontSize: 22, fontWeight: 600, marginBottom: 4 }}>{task.hotelName}</div>
+                <div style={{ color: '#666', fontSize: 13 }}>{task.city} · {task.roomName}</div>
               </div>
-
-              <Space wrap size={12} style={{ marginBottom: 8, color: '#6B7280' }}>
-                <span><b style={{ color: '#111827' }}>城市：</b>{task.city}</span>
-                <span><b style={{ color: '#111827' }}>房型：</b>{task.roomName}（{task.ratePlanHint}）</span>
-                <span><b style={{ color: '#111827' }}>日期：</b>{task.checkIn} → {task.checkOut}</span>
-                <span><b style={{ color: '#111827' }}>频率：</b>{task.frequencyMinutes} 分钟</span>
-                <span><b style={{ color: '#111827' }}>当前价：</b>{task.lastPrice == null ? '-' : `¥${task.lastPrice}`}</span>
-                <span><b style={{ color: '#111827' }}>目标价：</b>{`< ¥${task.threshold.value}`}</span>
+              <Space size={8}>
+                <Button
+                  icon={<ThunderboltOutlined />}
+                  loading={checkingNow}
+                  onClick={handleCheckNow}
+                  style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#f59e0b', borderRadius: 6, fontSize: 13 }}
+                >
+                  立即检查
+                </Button>
+                <Tooltip title="复制携程链接">
+                  <Button
+                    icon={<LinkOutlined />}
+                    onClick={() => { navigator.clipboard.writeText(task.link || ''); message.success('链接已复制'); }}
+                    disabled={!task.link}
+                    style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#888', borderRadius: 6 }}
+                  />
+                </Tooltip>
+                <PauseResumeButton id={task.id} enabled={isEnabled} onChanged={load} />
               </Space>
+            </div>
 
-              <div style={{ marginBottom: 8 }}>
-                {task.lastPrice != null && task.lastPrice < task.threshold.value ? <Tag color="green">已低于目标</Tag> : <Tag color="blue">未低于目标</Tag>}
-              </div>
-            </>
-          )}
+            {/* 统计卡片行 */}
+            <Row gutter={16} style={{ marginBottom: 24 }}>
+              <Col span={6}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+                  <Statistic
+                    title={<span style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em' }}>当前价格</span>}
+                    value={task.lastPrice ?? '—'}
+                    prefix={task.lastPrice ? '¥' : ''}
+                    valueStyle={{ color: below ? '#22c55e' : '#ededed', fontWeight: 600, fontSize: 26 }}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+                  <Statistic
+                    title={<span style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em' }}>目标价</span>}
+                    value={task.threshold?.value}
+                    prefix="¥"
+                    valueStyle={{ color: '#60a5fa', fontWeight: 600, fontSize: 26 }}
+                    suffix={
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => { setNewThreshold(task.threshold?.value); setThresholdModal(true); }}
+                        style={{ color: '#444', marginLeft: 4 }}
+                      />
+                    }
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+                  <Statistic
+                    title={<span style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em' }}>监控状态</span>}
+                    valueRender={() => (
+                      <div style={{ marginTop: 4 }}>
+                        {!isEnabled
+                          ? <Tag icon={<PauseCircleFilled />} style={{ background: '#1a1a1a', color: '#666', border: 'none', fontSize: 13, padding: '3px 10px' }}>已暂停</Tag>
+                          : below
+                          ? <Tag icon={<CheckCircleFilled />} style={{ background: '#052e16', color: '#22c55e', border: 'none', fontSize: 13, padding: '3px 10px' }}>已达成</Tag>
+                          : <Tag icon={<SyncOutlined spin />} style={{ background: '#0c1a2e', color: '#60a5fa', border: 'none', fontSize: 13, padding: '3px 10px' }}>监控中</Tag>
+                        }
+                      </div>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+                  <Statistic
+                    title={<span style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em' }}>检查频率</span>}
+                    value={task.frequencyMinutes}
+                    suffix="分钟"
+                    valueStyle={{ color: '#ededed', fontWeight: 600, fontSize: 26 }}
+                  />
+                </Card>
+              </Col>
+            </Row>
 
-          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>价格趋势</Typography.Title>
-          <PriceHistoryChart history={history as any} />
+            {/* 详情信息 */}
+            <Row gutter={16} style={{ marginBottom: 24 }}>
+              <Col span={12}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+                  <div style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em', marginBottom: 12 }}>任务信息</div>
+                  <InfoRow label="城市" value={task.city} />
+                  <InfoRow label="入住" value={`${task.checkIn} → ${task.checkOut}`} />
+                  <InfoRow label="房型" value={task.roomName} />
+                  <InfoRow label="方案" value={task.ratePlanHint || '—'} />
+                  <InfoRow label="最后检查" value={task.lastCheckedAt ? task.lastCheckedAt.replace('T', ' ').slice(0, 16) : '—'} />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8, height: '100%' }}>
+                  <div style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em', marginBottom: 12 }}>当前价格方案</div>
+                  {task.currentPriceOptions?.length ? (
+                    <List
+                      size="small"
+                      dataSource={task.currentPriceOptions}
+                      renderItem={(it: any, idx: number) => (
+                        <List.Item style={{ padding: '8px 0', borderBottom: idx < task.currentPriceOptions.length - 1 ? '1px solid #1a1a1a' : 'none' }}>
+                          <span style={{ color: idx === 0 ? '#22c55e' : '#ededed', fontWeight: idx === 0 ? 600 : 400, fontSize: 15, width: 80 }}>¥{it.price}</span>
+                          <span style={{ color: '#666', fontSize: 12 }}>{it.description}</span>
+                        </List.Item>
+                      )}
+                    />
+                  ) : (
+                    <div style={{ color: '#444', fontSize: 13, paddingTop: 8 }}>暂无价格方案</div>
+                  )}
+                </Card>
+              </Col>
+            </Row>
 
-          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>可选价格方案</Typography.Title>
-          {task?.currentPriceOptions?.length ? (
-            <List
-              size="small"
-              dataSource={task.currentPriceOptions}
-              renderItem={(it: any) => (
-                <List.Item style={{ paddingInline: 0 }}>
-                  <b style={{ width: 90, display: 'inline-block' }}>¥{it.price}</b>
-                  <span style={{ color: '#6B7280' }}>{it.description}</span>
-                </List.Item>
-              )}
-            />
-          ) : (
-            <div style={{ color: '#9CA3AF' }}>暂无</div>
-          )}
+            {/* 价格趋势图 */}
+            <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8, marginBottom: 24 }}>
+              <div style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em', marginBottom: 16 }}>价格趋势</div>
+              <PriceHistoryChart history={history as any} threshold={task.threshold?.value} />
+            </Card>
 
-          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 8 }}>价格历史</Typography.Title>
-          <Table
-            rowKey={(r) => r.ts}
-            size="middle"
-            dataSource={history.slice().reverse()}
-            columns={[
-              { title: '时间', dataIndex: 'ts' },
-              { title: '价格', dataIndex: 'price', render: (v: any) => (v == null ? '-' : `¥${v}`) },
-              { title: '状态', dataIndex: 'status' },
-              { title: '备注', dataIndex: 'note' },
-            ]}
-            pagination={{ pageSize: 20 }}
-          />
-        </Card>
+            {/* 历史记录表格 */}
+            <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+              <div style={{ color: '#555', fontSize: 11, letterSpacing: '0.06em', marginBottom: 16 }}>价格历史（{history.length} 条）</div>
+              <Table
+                rowKey="ts"
+                size="small"
+                dataSource={history.slice().reverse()}
+                columns={[
+                  {
+                    title: '时间', dataIndex: 'ts', width: 160,
+                    render: (v: string) => <span style={{ color: '#666', fontSize: 12 }}>{v?.replace('T', ' ').slice(0, 16)}</span>
+                  },
+                  {
+                    title: '价格', dataIndex: 'price', width: 100,
+                    render: (v: any, r: any) => {
+                      const hit = v != null && task?.threshold?.value && v < task.threshold.value;
+                      return <span style={{ color: hit ? '#22c55e' : '#ededed', fontWeight: hit ? 600 : 400 }}>{v == null ? '—' : `¥${v}`}</span>;
+                    }
+                  },
+                  {
+                    title: '状态', dataIndex: 'triggered', width: 100,
+                    render: (v: boolean) => v
+                      ? <Tag style={{ background: '#052e16', color: '#22c55e', border: 'none', fontSize: 11 }}>已触发</Tag>
+                      : <Tag style={{ background: '#0a0a0a', color: '#555', border: '1px solid #1f1f1f', fontSize: 11 }}>未触发</Tag>
+                  },
+                  { title: '备注', dataIndex: 'note', render: (v: any) => <span style={{ color: '#555', fontSize: 12 }}>{v || '—'}</span> },
+                ]}
+                pagination={{ pageSize: 20, size: 'small' }}
+              />
+            </Card>
+          </>
+        )}
       </Content>
+
+      {/* 修改目标价弹窗 */}
+      <Modal
+        title={<span style={{ color: '#ededed' }}>修改目标价</span>}
+        open={thresholdModal}
+        onCancel={() => setThresholdModal(false)}
+        onOk={handleSaveThreshold}
+        confirmLoading={savingThreshold}
+        styles={{ content: { background: '#111', border: '1px solid #1f1f1f' }, header: { background: '#111', borderBottom: '1px solid #1f1f1f' }, footer: { background: '#111', borderTop: '1px solid #1f1f1f' } }}
+        okText="确认修改"
+        cancelText="取消"
+      >
+        <div style={{ padding: '16px 0' }}>
+          <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>当前目标价：¥{task?.threshold?.value}</div>
+          <InputNumber
+            value={newThreshold}
+            onChange={v => setNewThreshold(v)}
+            prefix="¥"
+            min={1}
+            style={{ width: '100%', background: '#0a0a0a', borderColor: '#2a2a2a' }}
+            placeholder="输入新的目标价"
+          />
+        </div>
+      </Modal>
     </Layout>
   );
 }
