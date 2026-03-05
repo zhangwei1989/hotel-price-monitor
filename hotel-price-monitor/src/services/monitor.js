@@ -1,157 +1,200 @@
 /**
- * 监控服务
+ * 监控服务 v2
+ * - 支持多适配器调度
+ * - 价格历史本地持久化
+ * - 智能调度（随机延迟、夜间暂停、失败重试）
  */
 
-const CtripAPI = require('../api/ctrip');
-const FeishuAPI = require('../api/feishu');
+const fs = require('fs');
+const path = require('path');
+const AdapterManager = require('../adapters/AdapterManager');
+
+const STATE_PATH = path.join(__dirname, '../../../ctrip-monitor-state.json');
+const LOG_DIR = path.join(__dirname, '../../../logs');
+
+// 确保日志目录存在
+if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
 class MonitorService {
   constructor(config) {
-    this.ctripAPI = new CtripAPI(config.ctrip.apiKey, config.ctrip.apiSecret);
-    this.feishuAPI = new FeishuAPI(config.feishu.appId, config.feishu.appSecret);
     this.config = config;
+    this.adapterManager = new AdapterManager(config);
+    this.feishuOpenId = config.feishu?.notifyOpenId || '';
   }
 
-  /**
-   * 执行单个监控任务
-   * @param {Object} task - 监控任务
-   */
+  // ==================== 核心：执行单个任务 ====================
+
   async executeTask(task) {
-    const {
-      hotelId,
-      hotelName,
-      roomTypeId,
-      roomTypeName,
-      checkInDate,
-      checkOutDate,
-      threshold,
-      notifyTarget
-    } = task;
+    console.log(`\n[Monitor] ▶ 开始: ${task.hotelName} (${task.checkIn}~${task.checkOut})`);
 
-    console.log(`[监控] 检查 ${hotelName} - ${roomTypeName} @ ${checkInDate}`);
-
-    // 1. 查询携程价格
-    const priceResult = await this.ctripAPI.queryPrice({
-      hotelId,
-      roomTypeId,
-      checkInDate,
-      checkOutDate
-    });
-
-    if (!priceResult.success) {
-      console.error(`[监控] 价格查询失败:`, priceResult.error);
-      return { success: false, error: priceResult.error };
-    }
-
-    const { price, available } = priceResult.data;
-
-    console.log(`[监控] 当前价格: ¥${price}, 阈值: ¥${threshold}, 可订: ${available}`);
-
-    // 2. 判断是否触发告警
-    if (available && price > 0 && price <= threshold) {
-      console.log(`[监控] 🎉 触发告警! 价格 ¥${price} <= 阈值 ¥${threshold}`);
-
-      // 3. 发送飞书通知
-      await this.feishuAPI.sendPriceAlert({
-        userId: notifyTarget,
-        hotelName,
-        roomTypeName,
-        checkInDate,
-        currentPrice: price,
-        threshold
-      });
-
-      return {
-        success: true,
-        triggered: true,
-        price
-      };
-    }
-
-    return {
-      success: true,
-      triggered: false,
-      price
-    };
-  }
-
-  /**
-   * 从飞书多维表格加载任务列表
-   */
-  async loadTasksFromFeishu() {
-    const { appToken, tableId } = this.config.feishu.table;
-
-    const result = await this.feishuAPI.getTableRecords(appToken, tableId);
+    // 1. 调用适配器获取价格
+    const result = await this.adapterManager.queryPrice(task);
 
     if (!result.success) {
-      console.error('加载任务失败:', result.error);
+      this._log('error', task, null, result.error);
+      return { success: false, taskId: task.id, error: result.error };
+    }
+
+    const { price, priceOptions } = result.data;
+    const triggered = price !== null && price < task.threshold.value;
+
+    console.log(`[Monitor] 价格: ¥${price} | 目标: ¥${task.threshold.value} | ${triggered ? '🎉 触发!' : '未触发'}`);
+
+    // 2. 更新本地状态
+    this._updateState(task, price, priceOptions, triggered);
+
+    // 3. 触发飞书通知
+    if (triggered) {
+      await this._notify(task, price, priceOptions);
+    }
+
+    // 4. 写入日志
+    this._log('success', task, price, null);
+
+    return { success: true, taskId: task.id, price, triggered };
+  }
+
+  // ==================== 批量执行（带智能调度）====================
+
+  async runAll() {
+    // 夜间暂停 (02:00 - 06:00 北京时间)
+    if (this._isNightTime()) {
+      console.log('[Monitor] 🌙 夜间暂停模式 (02:00-06:00)，跳过本次执行');
       return [];
     }
 
-    // 解析表格数据为任务对象
-    return result.records
-      .filter(record => record.fields['状态'] === '监控中')
-      .map(record => ({
-        recordId: record.record_id,
-        hotelId: record.fields['酒店ID'],
-        hotelName: record.fields['酒店名称'],
-        roomTypeId: record.fields['房型ID'],
-        roomTypeName: record.fields['房型名称'],
-        checkInDate: record.fields['监控日期'],
-        checkOutDate: record.fields['离店日期'] || this.getNextDay(record.fields['监控日期']),
-        threshold: record.fields['价格阈值'],
-        notifyTarget: record.fields['通知对象']
-      }));
-  }
+    // 加载任务列表
+    const tasks = this._loadTasks();
+    const pendingTasks = tasks.filter(t => this._shouldCheck(t));
 
-  /**
-   * 更新飞书表格中的价格数据
-   */
-  async updateTaskPrice(recordId, price) {
-    const { appToken, tableId } = this.config.feishu.table;
-
-    return this.feishuAPI.updateTableRecord(appToken, tableId, recordId, {
-      '当前价格': price,
-      '最后更新时间': new Date().toISOString()
-    });
-  }
-
-  /**
-   * 批量执行监控任务
-   */
-  async runAll() {
-    console.log('[监控] 开始批量监控...');
-
-    const tasks = await this.loadTasksFromFeishu();
-    console.log(`[监控] 加载 ${tasks.length} 个任务`);
+    console.log(`[Monitor] 共 ${tasks.length} 个任务，本次需检查 ${pendingTasks.length} 个`);
 
     const results = [];
 
-    for (const task of tasks) {
-      const result = await this.executeTask(task);
-      results.push(result);
+    for (const task of pendingTasks) {
+      // 失败重试（最多 3 次，间隔递增）
+      let result = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        result = await this.executeTask(task);
+        if (result.success) break;
 
-      // 更新表格价格
-      if (result.success && result.price) {
-        await this.updateTaskPrice(task.recordId, result.price);
+        if (attempt < 3) {
+          const waitMs = attempt * 5000;
+          console.log(`[Monitor] 第 ${attempt} 次失败，${waitMs / 1000}s 后重试...`);
+          await this._sleep(waitMs);
+        }
       }
 
-      // 避免请求过快
-      await this.sleep(2000);
+      results.push(result);
+
+      // 随机延迟 2-6 秒，避免被携程封禁
+      const delay = 2000 + Math.random() * 4000;
+      await this._sleep(delay);
     }
 
-    console.log('[监控] 批量监控完成');
+    // 打印健康报告
+    console.log('\n[Monitor] 适配器健康状态:', JSON.stringify(this.adapterManager.getHealthReport(), null, 2));
+
     return results;
   }
 
-  getNextDay(dateStr) {
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().split('T')[0];
+  // ==================== 状态管理 ====================
+
+  _loadTasks() {
+    try {
+      const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+      return state.monitors || [];
+    } catch (err) {
+      console.error('[Monitor] 加载任务失败:', err.message);
+      return [];
+    }
   }
 
-  sleep(ms) {
+  _shouldCheck(task) {
+    if (!task.lastCheckedAt) return true;
+
+    const lastCheck = new Date(task.lastCheckedAt);
+    const now = new Date();
+    const diffMin = (now - lastCheck) / 1000 / 60;
+    const freqMin = task.frequencyMinutes || 60;
+
+    return diffMin >= freqMin;
+  }
+
+  _updateState(task, price, priceOptions, triggered) {
+    try {
+      const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+      const t = state.monitors.find(m => m.id === task.id);
+      if (!t) return;
+
+      const now = new Date().toISOString();
+      t.lastCheckedAt = now;
+      t.lastPrice = price;
+      t.currentPriceOptions = priceOptions || [];
+      t.lastStatus = triggered ? 'below_threshold' : 'above_threshold';
+
+      // 追加历史记录（最多保留 200 条）
+      if (!t.history) t.history = [];
+      t.history.push({ ts: now, price, triggered });
+      if (t.history.length > 200) t.history = t.history.slice(-200);
+
+      // 更新元数据
+      state.metadata = state.metadata || {};
+      state.metadata.lastSchedulerRun = now;
+
+      fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+    } catch (err) {
+      console.error('[Monitor] 状态更新失败:', err.message);
+    }
+  }
+
+  // ==================== 通知 ====================
+
+  async _notify(task, price, priceOptions) {
+    console.log(`[Monitor] 📨 发送飞书通知: ${task.hotelName} ¥${price}`);
+
+    try {
+      const FeishuAPI = require('../api/feishu');
+      const feishu = new FeishuAPI(this.config.feishu.appId, this.config.feishu.appSecret);
+
+      await feishu.sendPriceAlert({
+        userId: this.feishuOpenId || task.notifyTarget,
+        hotelName: task.hotelName,
+        roomTypeName: task.roomName,
+        checkInDate: task.checkIn,
+        currentPrice: price,
+        threshold: task.threshold.value
+      });
+    } catch (err) {
+      console.error('[Monitor] 飞书通知失败:', err.message);
+    }
+  }
+
+  // ==================== 工具方法 ====================
+
+  _isNightTime() {
+    const hour = new Date().getUTCHours() + 8; // 北京时间
+    const bjtHour = hour >= 24 ? hour - 24 : hour;
+    return bjtHour >= 2 && bjtHour < 6;
+  }
+
+  _sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  _log(level, task, price, error) {
+    const today = new Date().toISOString().slice(0, 10);
+    const logFile = path.join(LOG_DIR, `monitor-${today}.log`);
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      level,
+      taskId: task.id,
+      hotel: task.hotelName,
+      price,
+      error
+    }) + '\n';
+
+    fs.appendFileSync(logFile, line);
   }
 }
 
