@@ -7,13 +7,13 @@ import {
 import {
   ArrowLeftOutlined, LogoutOutlined, LinkOutlined,
   ThunderboltOutlined, CheckCircleFilled, SyncOutlined,
-  PauseCircleFilled, EditOutlined,
+  PauseCircleFilled, EditOutlined, ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchHistory, fetchTask } from '../api/tasks';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
-import { checkNow, updateThreshold } from '../api/taskActions';
+import { checkNow, updateThreshold, updateFrequency } from '../api/taskActions';
 
 const { Header, Content } = Layout;
 const { Text } = Typography;
@@ -38,6 +38,9 @@ export default function TaskDetail() {
   const [thresholdModal, setThresholdModal] = useState(false);
   const [newThreshold, setNewThreshold] = useState<number | null>(null);
   const [savingThreshold, setSavingThreshold] = useState(false);
+  const [freqModal, setFreqModal] = useState(false);
+  const [newFreq, setNewFreq] = useState<number | null>(null);
+  const [savingFreq, setSavingFreq] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -79,6 +82,21 @@ export default function TaskDetail() {
     localStorage.removeItem('pw_token');
     sessionStorage.removeItem('pw_token');
     window.location.href = '/login';
+  }
+
+  async function handleSaveFreq() {
+    if (!newFreq || newFreq < 10) return;
+    setSavingFreq(true);
+    try {
+      await updateFrequency(id!, newFreq);
+      message.success(`检查频率已更新为每 ${newFreq} 分钟`);
+      setFreqModal(false);
+      load();
+    } catch {
+      message.error('更新失败');
+    } finally {
+      setSavingFreq(false);
+    }
   }
 
   const isEnabled = task?.enabled ?? true;
@@ -199,6 +217,18 @@ export default function TaskDetail() {
                     value={task.frequencyMinutes}
                     suffix="分钟"
                     valueStyle={{ color: '#ededed', fontWeight: 600, fontSize: 26 }}
+                    suffix={
+                      <span>
+                        <span style={{ fontSize: 14, color: '#888', marginRight: 4 }}>分钟</span>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ClockCircleOutlined />}
+                          onClick={() => { setNewFreq(task.frequencyMinutes); setFreqModal(true); }}
+                          style={{ color: '#444' }}
+                        />
+                      </span>
+                    }
                   />
                 </Card>
               </Col>
@@ -276,6 +306,52 @@ export default function TaskDetail() {
           </>
         )}
       </Content>
+
+      {/* 修改检查频率弹窗 */}
+      <Modal
+        title={<span style={{ color: '#ededed' }}>修改检查频率</span>}
+        open={freqModal}
+        onCancel={() => setFreqModal(false)}
+        onOk={handleSaveFreq}
+        confirmLoading={savingFreq}
+        styles={{ content: { background: '#111', border: '1px solid #1f1f1f' }, header: { background: '#111', borderBottom: '1px solid #1f1f1f' }, footer: { background: '#111', borderTop: '1px solid #1f1f1f' } }}
+        okText="确认修改"
+        cancelText="取消"
+      >
+        <div style={{ padding: '16px 0' }}>
+          <div style={{ color: '#888', fontSize: 13, marginBottom: 8 }}>当前频率：每 {task?.frequencyMinutes} 分钟检查一次</div>
+          <div style={{ color: '#555', fontSize: 12, marginBottom: 12 }}>最小间隔 10 分钟，建议 60-480 分钟</div>
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <InputNumber
+              value={newFreq}
+              onChange={v => setNewFreq(v)}
+              min={10}
+              max={1440}
+              suffix="分钟"
+              style={{ width: '100%', background: '#0a0a0a', borderColor: '#2a2a2a' }}
+              placeholder="输入频率（分钟）"
+            />
+            <Space size={8}>
+              {[30, 60, 120, 240, 480].map(v => (
+                <Button
+                  key={v}
+                  size="small"
+                  onClick={() => setNewFreq(v)}
+                  style={{
+                    background: newFreq === v ? '#1d3a5c' : '#1a1a1a',
+                    border: newFreq === v ? '1px solid #3b82f6' : '1px solid #2a2a2a',
+                    color: newFreq === v ? '#60a5fa' : '#666',
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  {v >= 60 ? `${v / 60}h` : `${v}m`}
+                </Button>
+              ))}
+            </Space>
+          </Space>
+        </div>
+      </Modal>
 
       {/* 修改目标价弹窗 */}
       <Modal
