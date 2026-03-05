@@ -97,7 +97,7 @@ export async function deleteTask(id: string) {
 
 ---
 
-#### TASK-DASH-04：批量操作（多选 + 批量暂停/恢复/删除）
+#### ✅ TASK-DASH-04：批量操作（多选 + 批量暂停/恢复/删除）
 
 **交互设计：**
 1. 表格首列增加 Checkbox，支持全选/单选
