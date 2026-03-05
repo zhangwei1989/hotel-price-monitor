@@ -44,52 +44,49 @@ class FeishuAPI {
 
   /**
    * 发送价格告警卡片
+   * TASK-MON-01：link 参数使用任务实际链接，而非写死首页
    */
-  async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPrice, threshold }) {
+  async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPrice, threshold, link }) {
+    const saving = threshold - currentPrice;
+    const bookingUrl = (link && link.startsWith('http')) ? link : 'https://www.ctrip.com';
+
     const card = {
-      config: {
-        wide_screen_mode: true
-      },
+      config: { wide_screen_mode: true },
       header: {
-        title: {
-          content: '🎉 价格触发提醒',
-          tag: 'plain_text'
-        },
+        title: { content: '🎉 价格触发提醒', tag: 'plain_text' },
         template: 'orange'
       },
       elements: [
         {
           tag: 'div',
           text: {
-            content: `**酒店**: ${hotelName}\n**房型**: ${roomTypeName}\n**日期**: ${checkInDate}\n**当前价格**: ¥${currentPrice}\n**设定阈值**: ¥${threshold}\n**低于阈值**: ¥${threshold - currentPrice}`,
+            content: [
+              `**酒店**: ${hotelName}`,
+              `**房型**: ${roomTypeName}`,
+              `**入住日期**: ${checkInDate}`,
+              `**当前价格**: ¥${currentPrice}`,
+              `**目标阈值**: ¥${threshold}`,
+              `**省了**: ¥${saving}`,
+            ].join('\n'),
             tag: 'lark_md'
           }
         },
-        {
-          tag: 'hr'
-        },
+        { tag: 'hr' },
         {
           tag: 'note',
-          elements: [
-            {
-              tag: 'plain_text',
-              content: `更新时间: ${new Date().toLocaleString('zh-CN')}`
-            }
-          ]
+          elements: [{
+            tag: 'plain_text',
+            content: `更新时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`
+          }]
         },
         {
           tag: 'action',
-          actions: [
-            {
-              tag: 'button',
-              text: {
-                content: '前往预订',
-                tag: 'plain_text'
-              },
-              type: 'primary',
-              url: 'https://www.ctrip.com'
-            }
-          ]
+          actions: [{
+            tag: 'button',
+            text: { content: '前往预订', tag: 'plain_text' },
+            type: 'primary',
+            url: bookingUrl
+          }]
         }
       ]
     };

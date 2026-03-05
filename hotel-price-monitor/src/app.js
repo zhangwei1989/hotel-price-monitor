@@ -72,13 +72,18 @@ app.get('/api/monitor/health', (req, res) => {
 // 测试飞书通知
 app.post('/api/test/notify', async (req, res) => {
   try {
+    const userId = config.feishu.notifyOpenId || req.body.userId;
+    if (!userId) {
+      return res.status(400).json({ error: '未配置 FEISHU_NOTIFY_OPEN_ID，请在请求体中传入 userId' });
+    }
     const result = await feishuAPI.sendPriceAlert({
-      userId: config.feishu.notifyOpenId || req.body.userId,
-      hotelName: '测试酒店',
-      roomTypeName: '测试房型',
-      checkInDate: new Date().toISOString().slice(0, 10),
-      currentPrice: 500,
-      threshold: 600,
+      userId,
+      hotelName: req.body.hotelName || '测试酒店',
+      roomTypeName: req.body.roomTypeName || '测试房型',
+      checkInDate: req.body.checkInDate || new Date().toISOString().slice(0, 10),
+      currentPrice: req.body.currentPrice || 500,
+      threshold: req.body.threshold || 600,
+      link: req.body.link || 'https://hotels.ctrip.com',
     });
     res.json(result);
   } catch (err) {

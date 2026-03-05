@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const AdapterManager = require('../adapters/AdapterManager');
+const FeishuAPI = require('../api/feishu');
 
 const STATE_PATH = path.join(__dirname, '../../../ctrip-monitor-state.json');
 const LOG_DIR = path.join(__dirname, '../../../logs');
@@ -20,6 +21,16 @@ class MonitorService {
     this.config = config;
     this.adapterManager = new AdapterManager(config);
     this.feishuOpenId = config.feishu?.notifyOpenId || '';
+
+    // 预初始化飞书客户端（避免每次通知都重新创建）
+    // TASK-MON-03：确认 config.feishu 注入正确
+    if (config.feishu?.appId && config.feishu?.appSecret) {
+      this.feishu = new FeishuAPI(config.feishu.appId, config.feishu.appSecret);
+      console.log('[Monitor] 飞书客户端初始化成功');
+    } else {
+      this.feishu = null;
+      console.warn('[Monitor] ⚠️  飞书配置缺失（FEISHU_APP_ID / FEISHU_APP_SECRET），通知将不可用');
+    }
   }
 
   // ==================== 核心：执行单个任务 ====================
@@ -153,20 +164,36 @@ class MonitorService {
   async _notify(task, price, priceOptions) {
     console.log(`[Monitor] 📨 发送飞书通知: ${task.hotelName} ¥${price}`);
 
-    try {
-      const FeishuAPI = require('../api/feishu');
-      const feishu = new FeishuAPI(this.config.feishu.appId, this.config.feishu.appSecret);
+    // TASK-MON-03：使用预初始化的客户端，若未初始化则打印警告跳过
+    if (!this.feishu) {
+      console.warn('[Monitor] 飞书客户端未初始化，跳过通知');
+      return;
+    }
 
-      await feishu.sendPriceAlert({
-        userId: this.feishuOpenId || task.notifyTarget,
+    const userId = this.feishuOpenId || task.notifyTarget;
+    if (!userId) {
+      console.warn('[Monitor] 未配置通知 open_id（FEISHU_NOTIFY_OPEN_ID），跳过通知');
+      return;
+    }
+
+    try {
+      const result = await this.feishu.sendPriceAlert({
+        userId,
         hotelName: task.hotelName,
         roomTypeName: task.roomName,
         checkInDate: task.checkIn,
         currentPrice: price,
-        threshold: task.threshold.value
+        threshold: task.threshold.value,
+        link: task.link || '',          // TASK-MON-01：传入任务真实链接
       });
+
+      if (result.success) {
+        console.log(`[Monitor] ✅ 飞书通知发送成功: messageId=${result.messageId}`);
+      } else {
+        console.error(`[Monitor] ❌ 飞书通知发送失败:`, result.error);
+      }
     } catch (err) {
-      console.error('[Monitor] 飞书通知失败:', err.message);
+      console.error('[Monitor] 飞书通知异常:', err.message);
     }
   }
 
