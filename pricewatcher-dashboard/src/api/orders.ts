@@ -58,7 +58,7 @@ export async function updateOrder(id: string, data: Partial<Order> & { [key: str
 }
 
 export async function updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
-  const resp = await http.patch(`/api/orders/${id}/status`, { status });
+  const resp = await http.put(`/api/orders/${id}`, { status });
   return resp.data;
 }
 

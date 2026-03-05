@@ -10,6 +10,7 @@ import { PrivateRoute } from './components/PrivateRoute';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
 import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
 import Analytics from './pages/Analytics';
 import AiAdvisor from './pages/AiAdvisor';
 
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/tasks" element={<PrivateRoute><Tasks /></PrivateRoute>} />
           <Route path="/tasks/:id" element={<PrivateRoute><TaskDetail /></PrivateRoute>} />
           <Route path="/orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
+          <Route path="/orders/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
           <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
           <Route path="/ai-advisor" element={<PrivateRoute><AiAdvisor /></PrivateRoute>} />
         </Routes>

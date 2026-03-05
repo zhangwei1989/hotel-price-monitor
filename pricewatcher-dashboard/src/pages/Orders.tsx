@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, CheckCircleFilled,
-  ClockCircleFilled, SyncOutlined, StopOutlined,
+  ClockCircleFilled, SyncOutlined, StopOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { AppLayout } from '../components/AppLayout';
@@ -353,6 +353,11 @@ export default function Orders() {
       width: 70,
       render: (_: any, r: Order) => (
         <Space size={4}>
+          <Button
+            type="text" size="small" icon={<EyeOutlined />}
+            style={{ color: '#555' }}
+            onClick={() => navigate(`/orders/${r.id}`)}
+          />
           <Button
             type="text" size="small" icon={<EditOutlined />}
             style={{ color: '#555' }}
