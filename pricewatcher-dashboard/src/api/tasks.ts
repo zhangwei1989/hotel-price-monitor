@@ -36,6 +36,11 @@ export async function createTask(data: Partial<Task> & { [key: string]: any }) {
   return resp.data as Task;
 }
 
+export async function updateTask(id: string, data: Partial<Task> & { [key: string]: any }) {
+  const resp = await http.put(`/api/tasks/${id}`, data);
+  return resp.data as Task;
+}
+
 export async function deleteTask(id: string) {
   const resp = await http.delete(`/api/tasks/${id}`);
   return resp.data as { ok: boolean };

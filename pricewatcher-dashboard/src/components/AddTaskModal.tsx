@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { message } from 'antd';
-import { createTask } from '../api/tasks';
+import { createTask, updateTask } from '../api/tasks';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** 编辑模式：传入任务数据 */
+  initialData?: any;
+  /** 编辑模式：保存成功回调 */
+  onUpdated?: () => void;
 }
 
 const FREQ_PRESETS = [
@@ -72,21 +76,39 @@ function FocusInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-export function AddTaskModal({ open, onClose, onCreated }: Props) {
+const emptyForm = {
+  hotelName: '', city: '', link: '', checkIn: '', checkOut: '',
+  roomName: '', ratePlanHint: '', thresholdValue: '', frequencyMinutes: 60, autoStopDate: '',
+};
+
+export function AddTaskModal({ open, onClose, onCreated, initialData, onUpdated }: Props) {
+  const isEdit = !!initialData;
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    hotelName: '',
-    city: '',
-    link: '',
-    checkIn: '',
-    checkOut: '',
-    roomName: '',
-    ratePlanHint: '',
-    thresholdValue: '',
-    frequencyMinutes: 60,
-    autoStopDate: '',
-  });
+  const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // 编辑模式：打开时预填字段
+  useEffect(() => {
+    if (open && initialData) {
+      setForm({
+        hotelName: initialData.hotelName ?? '',
+        city: initialData.city ?? '',
+        link: initialData.link ?? '',
+        checkIn: initialData.checkIn ?? '',
+        checkOut: initialData.checkOut ?? '',
+        roomName: initialData.roomName ?? '',
+        ratePlanHint: initialData.ratePlanHint ?? '',
+        thresholdValue: String(initialData.threshold?.value ?? ''),
+        frequencyMinutes: initialData.frequencyMinutes ?? 60,
+        autoStopDate: initialData.autoStopDate ?? '',
+      });
+      setErrors({});
+    }
+    if (open && !initialData) {
+      setForm(emptyForm);
+      setErrors({});
+    }
+  }, [open, initialData]);
 
   function set(key: string, value: any) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -100,7 +122,8 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
     if (!form.city.trim()) errs.city = '城市不能为空';
     if (!form.roomName.trim()) errs.roomName = '房型名称不能为空';
     if (!form.checkIn) errs.checkIn = '请选择入住日期';
-    else if (form.checkIn < today) errs.checkIn = '入住日期不能早于今天';
+    // 编辑模式下不限制入住日期不能早于今天（历史订单）
+    else if (!isEdit && form.checkIn < today) errs.checkIn = '入住日期不能早于今天';
     if (!form.checkOut) errs.checkOut = '请选择退房日期';
     else if (form.checkIn && form.checkOut <= form.checkIn) errs.checkOut = '退房日期须晚于入住日期';
     if (!form.thresholdValue) errs.thresholdValue = '请填写目标价';
@@ -117,10 +140,7 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
 
   async function handleSubmit() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
     try {
       const checkIn = form.checkIn;
@@ -128,7 +148,7 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
       const nights = Math.ceil(
         (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000
       );
-      await createTask({
+      const payload = {
         hotelName: form.hotelName.trim(),
         city: form.city.trim(),
         roomName: form.roomName.trim(),
@@ -140,16 +160,21 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
         threshold: { type: 'absolute', value: Number(form.thresholdValue) },
         frequencyMinutes: form.frequencyMinutes,
         autoStopDate: form.autoStopDate || undefined,
-        type: 'hotel',
-        provider: 'ctrip',
-        currency: 'CNY',
-        enabled: true,
-      });
-      message.success('任务创建成功');
-      handleClose();
-      onCreated();
+      };
+
+      if (isEdit) {
+        await updateTask(initialData.id, payload);
+        message.success('任务已更新');
+        handleClose();
+        onUpdated?.();
+      } else {
+        await createTask({ ...payload, type: 'hotel', provider: 'ctrip', currency: 'CNY', enabled: true });
+        message.success('任务创建成功');
+        handleClose();
+        onCreated();
+      }
     } catch (e: any) {
-      const msg = e?.response?.data?.error || '创建失败，请重试';
+      const msg = e?.response?.data?.error || (isEdit ? '更新失败，请重试' : '创建失败，请重试');
       message.error(msg);
     } finally {
       setLoading(false);
@@ -157,10 +182,6 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
   }
 
   function handleClose() {
-    setForm({
-      hotelName: '', city: '', link: '', checkIn: '', checkOut: '',
-      roomName: '', ratePlanHint: '', thresholdValue: '', frequencyMinutes: 60, autoStopDate: '',
-    });
     setErrors({});
     onClose();
   }
@@ -192,8 +213,12 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#ededed' }}>添加监控任务</div>
-            <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>填写酒店信息，自动开始价格监控</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#ededed' }}>
+              {isEdit ? '编辑监控任务' : '添加监控任务'}
+            </div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+              {isEdit ? '修改任务信息，价格历史数据保留' : '填写酒店信息，自动开始价格监控'}
+            </div>
           </div>
           <button onClick={handleClose} style={{
             background: 'transparent', border: 'none', color: '#555', cursor: 'pointer',
@@ -394,7 +419,7 @@ export function AddTaskModal({ open, onClose, onCreated }: Props) {
                 <path d="M12 2a10 10 0 0 1 10 10" stroke="#aaa" strokeWidth="3" strokeLinecap="round"/>
               </svg>
             )}
-            {loading ? '创建中...' : '创建任务'}
+            {loading ? (isEdit ? '保存中...' : '创建中...') : (isEdit ? '保存修改' : '创建任务')}
           </button>
         </div>
       </div>

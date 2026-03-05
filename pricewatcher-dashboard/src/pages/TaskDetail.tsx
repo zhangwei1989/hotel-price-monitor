@@ -15,6 +15,7 @@ import { PauseResumeButton } from '../components/PauseResumeButton';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { checkNow, updateThreshold, updateFrequency } from '../api/taskActions';
 import { AppLayout } from '../components/AppLayout';
+import { AddTaskModal } from '../components/AddTaskModal';
 
 // ── 小工具：Info 行 ───────────────────────────────────────────
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -33,6 +34,7 @@ export default function TaskDetail() {
   const [task, setTask] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [checkingNow, setCheckingNow] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [thresholdModal, setThresholdModal] = useState(false);
   const [newThreshold, setNewThreshold] = useState<number | null>(null);
   const [savingThreshold, setSavingThreshold] = useState(false);
@@ -126,6 +128,13 @@ export default function TaskDetail() {
                 <div style={{ color: '#666', fontSize: 13 }}>{task.city} · {task.roomName}</div>
               </div>
               <Space size={8}>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => setEditModalOpen(true)}
+                  style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#888', borderRadius: 6, fontSize: 13 }}
+                >
+                  编辑
+                </Button>
                 <Button
                   icon={<ThunderboltOutlined />}
                   loading={checkingNow}
@@ -312,6 +321,15 @@ export default function TaskDetail() {
           </>
         )}
       </div>
+
+      {/* 编辑任务 Modal */}
+      <AddTaskModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onCreated={() => {}}
+        initialData={task}
+        onUpdated={() => { setEditModalOpen(false); load(); }}
+      />
 
       {/* 修改检查频率弹窗 */}
       <Modal
