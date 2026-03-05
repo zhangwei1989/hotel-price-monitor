@@ -1,0 +1,8 @@
+
+> pricewatcher-api@1.0.0 dev
+> ts-node-dev --respawn --transpile-only src/server.ts
+
+[INFO] 03:45:55 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 22:44:59 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/task-actions.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
