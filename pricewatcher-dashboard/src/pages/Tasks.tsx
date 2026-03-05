@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button, Card, Col, Input, Layout, Row,
-  Space, Table, Tag, Typography, Statistic,
+  Space, Table, Tag, Typography, Statistic, message,
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, LogoutOutlined,
-  CheckCircleFilled, SyncOutlined, PauseCircleFilled, EyeOutlined,
+  CheckCircleFilled, SyncOutlined, PauseCircleFilled,
+  EyeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import { fetchTasks } from '../api/tasks';
+import { checkNow, fetchSummary } from '../api/taskActions';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
@@ -22,6 +24,8 @@ export default function Tasks() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState('');
+  const [summary, setSummary] = useState<any>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
 
   const [city, setCity] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
@@ -38,19 +42,23 @@ export default function Tasks() {
   async function load() {
     setLoading(true);
     try {
-      const data = await fetchTasks({
-        page, pageSize, city, status,
-        enabled: enabled ?? undefined,
-        checkInFrom: checkInRange?.[0],
-        checkInTo: checkInRange?.[1],
-        currentPriceMin: priceMin,
-        currentPriceMax: priceMax,
-        belowTarget: belowTarget ?? undefined,
-        sortBy, sortOrder,
-        hotelName: q || undefined,
-      });
+      const [data, sum] = await Promise.all([
+        fetchTasks({
+          page, pageSize, city, status,
+          enabled: enabled ?? undefined,
+          checkInFrom: checkInRange?.[0],
+          checkInTo: checkInRange?.[1],
+          currentPriceMin: priceMin,
+          currentPriceMax: priceMax,
+          belowTarget: belowTarget ?? undefined,
+          sortBy, sortOrder,
+          hotelName: q || undefined,
+        }),
+        fetchSummary().catch(() => null),
+      ]);
       setRows(data.tasks);
       setTotal(data.total);
+      if (sum) setSummary(sum);
     } finally {
       setLoading(false);
     }
@@ -58,18 +66,23 @@ export default function Tasks() {
 
   useEffect(() => { load(); }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget, sortBy, sortOrder]);
 
-  const stats = useMemo(() => {
-    const monitoring = rows.filter(r => (r.enabled ?? true) && (r.lastPrice == null || r.lastPrice >= r.threshold.value)).length;
-    const reached = rows.filter(r => (r.enabled ?? true) && r.lastPrice != null && r.lastPrice < r.threshold.value).length;
-    const paused = rows.filter(r => !(r.enabled ?? true)).length;
-    return { monitoring, reached, paused };
-  }, [rows]);
+  async function handleCheckNow(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setCheckingId(id);
+    try {
+      await checkNow(id);
+      message.success('已标记立即检查，下次调度将优先执行');
+      load();
+    } catch {
+      message.error('操作失败');
+    } finally {
+      setCheckingId(null);
+    }
+  }
 
   const columns = [
     {
       title: '酒店信息',
-      dataIndex: 'hotelName',
-      width: '32%',
       render: (_: any, r: any) => (
         <div>
           <div style={{ color: '#ededed', fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{r.hotelName}</div>
@@ -89,13 +102,12 @@ export default function Tasks() {
     },
     {
       title: '当前价格',
-      dataIndex: 'lastPrice',
       width: 110,
-      render: (v: any, r: any) => {
-        const hit = v != null && v < r.threshold.value;
+      render: (_: any, r: any) => {
+        const hit = r.lastPrice != null && r.lastPrice < r.threshold.value;
         return (
           <span style={{ color: hit ? '#22c55e' : '#ededed', fontWeight: 600, fontSize: 15 }}>
-            {v == null ? '—' : `¥${v}`}
+            {r.lastPrice == null ? '—' : `¥${r.lastPrice}`}
           </span>
         );
       },
@@ -104,7 +116,7 @@ export default function Tasks() {
       title: '目标价',
       width: 100,
       render: (_: any, r: any) => (
-        <span style={{ color: '#666', fontSize: 13 }}>{'< ¥' + r.threshold?.value}</span>
+        <span style={{ color: '#666', fontSize: 13 }}>{`< ¥${r.threshold?.value}`}</span>
       ),
     },
     {
@@ -112,19 +124,37 @@ export default function Tasks() {
       width: 120,
       render: (_: any, r: any) => {
         const isEnabled = r.enabled ?? true;
-        if (!isEnabled) return <Tag color="default" icon={<PauseCircleFilled />} style={{ background: '#1a1a1a', color: '#666' }}>已暂停</Tag>;
+        if (!isEnabled) return <Tag icon={<PauseCircleFilled />} style={{ background: '#1a1a1a', color: '#666', border: 'none' }}>已暂停</Tag>;
         const below = r.lastPrice != null && r.lastPrice < r.threshold.value;
-        if (below) return <Tag icon={<CheckCircleFilled />} style={{ background: '#052e16', color: '#22c55e' }}>已达成</Tag>;
-        return <Tag icon={<SyncOutlined spin />} style={{ background: '#0c1a2e', color: '#60a5fa' }}>监控中</Tag>;
+        if (below) return <Tag icon={<CheckCircleFilled />} style={{ background: '#052e16', color: '#22c55e', border: 'none' }}>已达成</Tag>;
+        return <Tag icon={<SyncOutlined spin />} style={{ background: '#0c1a2e', color: '#60a5fa', border: 'none' }}>监控中</Tag>;
       },
     },
     {
       title: '',
-      width: 120,
+      width: 180,
       align: 'right' as const,
       render: (_: any, r: any) => (
-        <Space size={4}>
-          <Button size="small" type="text" icon={<EyeOutlined />} style={{ color: '#888' }} onClick={() => navigate(`/tasks/${r.id}`)}>详情</Button>
+        <Space size={4} onClick={e => e.stopPropagation()}>
+          <Button
+            size="small"
+            type="text"
+            icon={<ThunderboltOutlined />}
+            loading={checkingId === r.id}
+            style={{ color: '#f59e0b', fontSize: 12 }}
+            onClick={(e) => handleCheckNow(r.id, e)}
+          >
+            立即检查
+          </Button>
+          <Button
+            size="small"
+            type="text"
+            icon={<EyeOutlined />}
+            style={{ color: '#888' }}
+            onClick={() => navigate(`/tasks/${r.id}`)}
+          >
+            详情
+          </Button>
           <PauseResumeButton id={r.id} enabled={(r.enabled ?? true) === true} onChanged={load} />
         </Space>
       ),
@@ -144,53 +174,60 @@ export default function Tasks() {
     setQ(''); setPage(1);
   }
 
+  const statCards = [
+    { label: 'TOTAL TASKS', value: summary?.total ?? total, color: '#ededed' },
+    { label: 'MONITORING', value: summary?.active ?? '—', color: '#60a5fa' },
+    { label: 'TARGET MET', value: summary?.reached ?? '—', color: '#22c55e' },
+    { label: 'PAUSED', value: summary?.paused ?? '—', color: '#555' },
+  ];
+
   return (
     <Layout style={{ minHeight: '100vh', background: '#0a0a0a' }}>
-      <Header style={{ background: '#000', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Header style={{
+        background: '#000',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '1px solid #1a1a1a',
+        padding: '0 32px',
+      }}>
         <Space size={10}>
-          <div style={{ width: 20, height: 20, borderRadius: 4, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 22, height: 22, borderRadius: 5, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: '#000' }} />
           </div>
-          <Title level={5} style={{ margin: 0, color: '#ededed', fontWeight: 600 }}>PriceWatcher</Title>
+          <Title level={5} style={{ margin: 0, color: '#ededed', fontWeight: 600, letterSpacing: -0.3 }}>
+            PriceWatcher
+          </Title>
         </Space>
-        <Button
-          type="text"
-          icon={<LogoutOutlined />}
-          onClick={logout}
-          style={{ color: '#666', fontSize: 13 }}
-        >退出</Button>
+        <Button type="text" icon={<LogoutOutlined />} onClick={logout} style={{ color: '#555', fontSize: 13 }}>
+          退出
+        </Button>
       </Header>
 
       <Content style={{ padding: '32px 40px' }}>
         {/* Stats */}
-        <Row gutter={16} style={{ marginBottom: 32 }}>
-          {[
-            { label: 'TOTAL TASKS', value: total, color: '#ededed' },
-            { label: 'MONITORING', value: stats.monitoring, color: '#60a5fa' },
-            { label: 'TARGET MET', value: stats.reached, color: '#22c55e' },
-            { label: 'PAUSED', value: stats.paused, color: '#555' },
-          ].map(item => (
+        <Row gutter={16} style={{ marginBottom: 28 }}>
+          {statCards.map(item => (
             <Col span={6} key={item.label}>
-              <Card bordered={false}>
+              <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
                 <Statistic
-                  title={<span style={{ color: '#555', fontSize: 11, letterSpacing: '0.08em' }}>{item.label}</span>}
+                  title={<span style={{ color: '#444', fontSize: 11, letterSpacing: '0.08em', fontWeight: 500 }}>{item.label}</span>}
                   value={item.value}
-                  valueStyle={{ color: item.color, fontSize: 28, fontWeight: 600 }}
+                  valueStyle={{ color: item.color, fontSize: 28, fontWeight: 600, letterSpacing: -0.5 }}
                 />
               </Card>
             </Col>
           ))}
         </Row>
 
-        {/* Table card */}
-        <Card bordered={false}>
-          {/* Toolbar */}
+        {/* Table */}
+        <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <Space size={8}>
               <Input
                 placeholder="搜索酒店名称..."
-                prefix={<SearchOutlined style={{ color: '#555' }} />}
-                style={{ width: 280, borderRadius: 6 }}
+                prefix={<SearchOutlined style={{ color: '#444' }} />}
+                style={{ width: 260, background: '#0a0a0a', border: '1px solid #2a2a2a', borderRadius: 6, color: '#ededed' }}
                 value={q}
                 onChange={e => setQ(e.target.value)}
                 onPressEnter={() => { setPage(1); load(); }}
@@ -210,8 +247,8 @@ export default function Tasks() {
               />
             </Space>
             <Space size={8}>
-              <Button icon={<ReloadOutlined />} onClick={resetFilters} style={{ fontSize: 13 }}>重置</Button>
-              <Button icon={<ReloadOutlined />} onClick={load} style={{ fontSize: 13 }}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={resetFilters} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>重置</Button>
+              <Button icon={<ReloadOutlined />} onClick={load} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>刷新</Button>
             </Space>
           </div>
 
@@ -225,7 +262,7 @@ export default function Tasks() {
               current: page,
               pageSize,
               showSizeChanger: true,
-              showTotal: t => <span style={{ color: '#555', fontSize: 12 }}>{t} 个任务</span>,
+              showTotal: t => <span style={{ color: '#444', fontSize: 12 }}>{t} 个任务</span>,
               onChange: (p, ps) => { setPage(p); setPageSize(ps); },
             }}
             onRow={r => ({ onClick: () => navigate(`/tasks/${r.id}`), style: { cursor: 'pointer' } })}
