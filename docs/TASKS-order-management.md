@@ -12,7 +12,7 @@
 
 ---
 
-#### TASK-ORDER-API-01：OrderService + orders.json 数据层
+#### ✅ TASK-ORDER-API-01：OrderService + orders.json 数据层
 
 **内容：**
 - 新建 `src/services/OrderService.ts`
@@ -36,7 +36,7 @@ preAuthStatus:
 
 ---
 
-#### TASK-ORDER-API-02：订单 CRUD 路由
+#### ✅ TASK-ORDER-API-02：订单 CRUD 路由
 
 **文件：** `src/routes/orders.ts`
 
@@ -63,7 +63,7 @@ DELETE /api/orders/:id      删除
 
 ---
 
-#### TASK-ORDER-API-03：统计分析路由
+#### ✅ TASK-ORDER-API-03：统计分析路由
 
 **文件：** `src/routes/order-analytics.ts`
 
@@ -98,7 +98,7 @@ GET /api/orders/pre-auth/pending      待退预授权列表
 
 ---
 
-#### TASK-ORDER-API-04：注册路由到 app.ts
+#### ✅ TASK-ORDER-API-04：注册路由到 app.ts
 
 **内容：**
 - 在 `src/app.ts` 中引入并挂载 orders 和 order-analytics 路由
