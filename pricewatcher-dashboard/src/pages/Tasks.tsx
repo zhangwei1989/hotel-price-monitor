@@ -9,7 +9,7 @@ import {
   EyeOutlined, ThunderboltOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { fetchTasks, deleteTask } from '../api/tasks';
-import { checkNow, fetchSummary } from '../api/taskActions';
+import { checkNow, fetchSummary, batchPause, batchResume, batchDelete } from '../api/taskActions';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
@@ -26,6 +26,8 @@ export default function Tasks() {
   const [summary, setSummary] = useState<any>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchLoading, setBatchLoading] = useState<string | null>(null); // 'pause'|'resume'|'delete'
 
   const [city, setCity] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
@@ -66,6 +68,9 @@ export default function Tasks() {
 
   useEffect(() => { load(); }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget, sortBy, sortOrder]);
 
+  // 翻页/筛选变化时清空选中
+  useEffect(() => { setSelectedIds([]); }, [page, pageSize, city, status, enabled, checkInRange, priceMin, priceMax, belowTarget]);
+
   async function handleCheckNow(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     setCheckingId(id);
@@ -84,11 +89,62 @@ export default function Tasks() {
     try {
       await deleteTask(id);
       message.success('任务已删除');
+      setSelectedIds(prev => prev.filter(i => i !== id));
       load();
     } catch {
       message.error('删除失败');
     }
   }
+
+  // ── 批量操作 ─────────────────────────────────────────────────
+
+  async function handleBatchPause() {
+    setBatchLoading('pause');
+    try {
+      await batchPause(selectedIds);
+      message.success(`已暂停 ${selectedIds.length} 个任务`);
+      setSelectedIds([]);
+      load();
+    } catch {
+      message.error('批量暂停失败');
+    } finally {
+      setBatchLoading(null);
+    }
+  }
+
+  async function handleBatchResume() {
+    setBatchLoading('resume');
+    try {
+      await batchResume(selectedIds);
+      message.success(`已恢复 ${selectedIds.length} 个任务`);
+      setSelectedIds([]);
+      load();
+    } catch {
+      message.error('批量恢复失败');
+    } finally {
+      setBatchLoading(null);
+    }
+  }
+
+  async function handleBatchDelete() {
+    setBatchLoading('delete');
+    try {
+      const { deleted, failed } = await batchDelete(selectedIds);
+      if (failed > 0) {
+        message.warning(`已删除 ${deleted} 个，${failed} 个失败`);
+      } else {
+        message.success(`已删除 ${deleted} 个任务`);
+      }
+      setSelectedIds([]);
+      load();
+    } catch {
+      message.error('批量删除失败');
+    } finally {
+      setBatchLoading(null);
+    }
+  }
+
+  // ── 表格列定义 ───────────────────────────────────────────────
 
   const columns = [
     {
@@ -142,13 +198,12 @@ export default function Tasks() {
     },
     {
       title: '',
-      width: 180,
+      width: 200,
       align: 'right' as const,
       render: (_: any, r: any) => (
         <Space size={4} onClick={e => e.stopPropagation()}>
           <Button
-            size="small"
-            type="text"
+            size="small" type="text"
             icon={<ThunderboltOutlined />}
             loading={checkingId === r.id}
             style={{ color: '#f59e0b', fontSize: 12 }}
@@ -157,8 +212,7 @@ export default function Tasks() {
             立即检查
           </Button>
           <Button
-            size="small"
-            type="text"
+            size="small" type="text"
             icon={<EyeOutlined />}
             style={{ color: '#888' }}
             onClick={() => navigate(`/tasks/${r.id}`)}
@@ -170,14 +224,12 @@ export default function Tasks() {
             title="确认删除此任务？"
             description="操作不可撤销"
             onConfirm={() => handleDelete(r.id)}
-            okText="删除"
-            cancelText="取消"
+            okText="删除" cancelText="取消"
             okButtonProps={{ danger: true }}
             overlayStyle={{ fontSize: 13 }}
           >
             <Button
-              size="small"
-              type="text"
+              size="small" type="text"
               icon={<DeleteOutlined />}
               style={{ color: '#555' }}
               onClick={e => e.stopPropagation()}
@@ -202,6 +254,8 @@ export default function Tasks() {
     { label: 'PAUSED', value: summary?.paused ?? '—', color: '#555' },
   ];
 
+  const hasSelected = selectedIds.length > 0;
+
   return (
     <AppLayout>
       <div style={{ padding: '32px 40px' }}>
@@ -222,7 +276,8 @@ export default function Tasks() {
 
         {/* Table */}
         <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          {/* 工具栏 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Space size={8}>
               <Input
                 placeholder="搜索酒店名称..."
@@ -269,11 +324,85 @@ export default function Tasks() {
             </Space>
           </div>
 
+          {/* 批量操作栏 —— 有选中时才显示 */}
+          {hasSelected && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px',
+              background: '#0d1f35',
+              border: '1px solid #1d3a5c',
+              borderRadius: 8,
+              marginBottom: 12,
+            }}>
+              <span style={{ fontSize: 13, color: '#60a5fa', fontWeight: 500 }}>
+                已选 {selectedIds.length} 项
+              </span>
+              <div style={{ width: 1, height: 16, background: '#1f3a5c' }} />
+              <Button
+                size="small"
+                loading={batchLoading === 'pause'}
+                disabled={!!batchLoading}
+                onClick={handleBatchPause}
+                style={{ fontSize: 12, borderColor: '#2a3a4a', background: '#111', color: '#888', borderRadius: 6 }}
+              >
+                批量暂停
+              </Button>
+              <Button
+                size="small"
+                loading={batchLoading === 'resume'}
+                disabled={!!batchLoading}
+                onClick={handleBatchResume}
+                style={{ fontSize: 12, borderColor: '#2a3a4a', background: '#111', color: '#888', borderRadius: 6 }}
+              >
+                批量恢复
+              </Button>
+              <Popconfirm
+                title={`确认删除选中的 ${selectedIds.length} 个任务？`}
+                description="操作不可撤销，所有历史数据将一并删除"
+                onConfirm={handleBatchDelete}
+                okText="确认删除" cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  size="small"
+                  loading={batchLoading === 'delete'}
+                  disabled={!!batchLoading}
+                  danger
+                  style={{ fontSize: 12, borderRadius: 6 }}
+                >
+                  批量删除
+                </Button>
+              </Popconfirm>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setSelectedIds([])}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: '#555', fontSize: 12, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#888')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                取消选择
+              </button>
+            </div>
+          )}
+
           <Table
             rowKey="id"
             loading={loading}
             columns={columns as any}
             dataSource={rows}
+            rowSelection={{
+              selectedRowKeys: selectedIds,
+              onChange: keys => setSelectedIds(keys as string[]),
+              columnWidth: 40,
+              getCheckboxProps: () => ({ style: { accentColor: '#3b82f6' } }),
+            }}
             pagination={{
               total,
               current: page,

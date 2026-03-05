@@ -39,3 +39,12 @@ export async function fetchSummary() {
   const resp = await http.get('/api/task-actions/stats/summary');
   return resp.data;
 }
+
+export async function batchDelete(ids: string[]) {
+  // 并发删除，收集结果
+  const results = await Promise.allSettled(
+    ids.map(id => http.delete(`/api/tasks/${id}`))
+  );
+  const failed = results.filter(r => r.status === 'rejected').length;
+  return { deleted: ids.length - failed, failed };
+}
