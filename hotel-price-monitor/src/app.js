@@ -91,6 +91,59 @@ app.post('/api/test/notify', async (req, res) => {
   }
 });
 
+// 日志查询接口（TASK-MON-07）
+// GET /api/logs?date=2026-03-06&level=error&page=1&pageSize=50
+app.get('/api/logs', (req, res) => {
+  try {
+    const date     = req.query.date || new Date().toISOString().slice(0, 10);
+    const level    = req.query.level || '';
+    const page     = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize) || 50));
+
+    const logFile = path.join(LOG_DIR, `monitor-${date}.log`);
+    if (!fs.existsSync(logFile)) {
+      return res.json({ date, total: 0, page, pageSize, logs: [] });
+    }
+
+    const lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean);
+    let parsed = lines
+      .map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean);
+
+    // 按 level 筛选
+    if (level) {
+      parsed = parsed.filter(l => l.level === level);
+    }
+
+    // 倒序（最新在前）
+    parsed.reverse();
+
+    const total = parsed.length;
+    const start = (page - 1) * pageSize;
+    const logs  = parsed.slice(start, start + pageSize);
+
+    res.json({ date, total, page, pageSize, logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 可用日志日期列表
+app.get('/api/logs/dates', (req, res) => {
+  try {
+    const files = fs.existsSync(LOG_DIR)
+      ? fs.readdirSync(LOG_DIR)
+          .filter(f => f.startsWith('monitor-') && f.endsWith('.log'))
+          .map(f => f.replace('monitor-', '').replace('.log', ''))
+          .sort()
+          .reverse()
+      : [];
+    res.json({ dates: files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── 智能调度核心 ──────────────────────────────────────────────
 
 /**
@@ -182,8 +235,9 @@ async function runScheduler() {
     return [];
   }
 
-  // 分批执行（每批 15 个）
-  const BATCH = 15;
+  // 分批执行（TASK-MON-04：从 config 读取批次大小和延迟）
+  const schedulerCfg = monitorService.cfg;
+  const BATCH = schedulerCfg.batchSize;
   const results = [];
 
   for (let i = 0; i < pending.length; i += BATCH) {
@@ -191,16 +245,19 @@ async function runScheduler() {
     console.log(`\n[Scheduler] 批次 ${Math.floor(i / BATCH) + 1}，共 ${batch.length} 个任务`);
 
     for (const task of batch) {
-      const result = await monitorService.executeTask(task);
+      // 判断是否为强制检查（TASK-MON-02：传入 source）
+      const isForced = task.lastCheckedAt && new Date(task.lastCheckedAt).getFullYear() === 1970;
+      const result = await monitorService.executeTask(task, isForced ? 'forced' : 'scheduled');
       results.push(result);
 
-      // 任务间随机延迟 1-5 秒
-      await sleep(1000 + Math.random() * 4000);
+      // 任务间随机延迟（从 config 读取）
+      const taskDelay = (schedulerCfg.taskDelaySecMin + Math.random() * (schedulerCfg.taskDelaySecMax - schedulerCfg.taskDelaySecMin)) * 1000;
+      await sleep(taskDelay);
     }
 
-    // 批次间随机延迟 5-10 分钟（如果还有下一批）
+    // 批次间随机延迟（从 config 读取）
     if (i + BATCH < pending.length) {
-      const delayMin = 5 + Math.random() * 5;
+      const delayMin = schedulerCfg.batchDelayMin + Math.random() * (schedulerCfg.batchDelayMax - schedulerCfg.batchDelayMin);
       console.log(`[Scheduler] 批次间隔 ${delayMin.toFixed(1)} 分钟...`);
       await sleep(delayMin * 60 * 1000);
     }
@@ -212,6 +269,7 @@ async function runScheduler() {
 
 /**
  * 每日汇报：统计昨日监控数据，发飞书
+ * TASK-MON-06：新增昨日降价任务列表
  */
 async function sendDailyReport() {
   console.log('[DailyReport] 生成每日汇报...');
@@ -223,40 +281,114 @@ async function sendDailyReport() {
     const active  = monitors.filter(t => t.enabled ?? true).length;
     const reached = monitors.filter(t => t.lastPrice != null && t.lastPrice < t.threshold.value).length;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const logFile = path.join(LOG_DIR, `monitor-${today}.log`);
-    let todayChecks = 0, todayErrors = 0;
+    // 昨日日志
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const logFile = path.join(LOG_DIR, `monitor-${yesterday}.log`);
+    let checks = 0, errors = 0;
+    const triggeredEntries = []; // 昨日降价记录
 
     if (fs.existsSync(logFile)) {
       const lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean);
-      todayChecks = lines.filter(l => l.includes('"level":"success"')).length;
-      todayErrors = lines.filter(l => l.includes('"level":"error"')).length;
+      const parsed = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      checks = parsed.filter(l => l.level === 'success').length;
+      errors = parsed.filter(l => l.level === 'error').length;
+
+      // 从 state 里找昨日触发的任务（history.triggered=true 且 ts 在昨日）
+      const yesterdayStart = `${yesterday}T00:00:00`;
+      const yesterdayEnd   = `${yesterday}T23:59:59`;
+      for (const task of monitors) {
+        const hits = (task.history || []).filter(
+          h => h.triggered && h.ts >= yesterdayStart && h.ts <= yesterdayEnd
+        );
+        if (hits.length > 0) {
+          const minPrice = Math.min(...hits.map(h => h.price).filter(p => p != null));
+          triggeredEntries.push({
+            hotelName: task.hotelName,
+            city: task.city,
+            checkIn: task.checkIn,
+            price: minPrice,
+            threshold: task.threshold?.value,
+          });
+        }
+      }
     }
 
-    const msg = [
-      `📊 PriceWatcher 每日汇报 ${today}`,
-      ``,
-      `监控任务：${total} 个（${active} 个运行中）`,
-      `已达目标：${reached} 个`,
-      `今日检查：${todayChecks} 次`,
-      `今日错误：${todayErrors} 次`,
-      `成功率：${todayChecks > 0 ? ((todayChecks / (todayChecks + todayErrors)) * 100).toFixed(1) : 'N/A'}%`,
-    ].join('\n');
+    const successRate = checks > 0
+      ? ((checks / (checks + errors)) * 100).toFixed(1)
+      : 'N/A';
 
-    console.log('[DailyReport]', msg);
+    const today = new Date().toISOString().slice(0, 10);
+    console.log(`[DailyReport] 昨日：检查${checks}次，错误${errors}次，降价${triggeredEntries.length}个`);
 
-    if (config.feishu.notifyOpenId && config.feishu.appId) {
-      await feishuAPI.sendCard(config.feishu.notifyOpenId, {
-        config: { wide_screen_mode: true },
-        header: { title: { content: `📊 PriceWatcher 每日汇报 ${today}`, tag: 'plain_text' }, template: 'blue' },
-        elements: [
-          { tag: 'div', text: { content: `**监控任务：** ${total} 个（${active} 个运行中）`, tag: 'lark_md' } },
-          { tag: 'div', text: { content: `**已达目标：** ${reached} 个`, tag: 'lark_md' } },
-          { tag: 'div', text: { content: `**今日检查：** ${todayChecks} 次 | 错误：${todayErrors} 次`, tag: 'lark_md' } },
-          { tag: 'div', text: { content: `**成功率：** ${todayChecks > 0 ? ((todayChecks / (todayChecks + todayErrors)) * 100).toFixed(1) : 'N/A'}%`, tag: 'lark_md' } },
-        ],
+    if (!config.feishu.notifyOpenId || !config.feishu.appId) {
+      console.warn('[DailyReport] 飞书未配置，跳过发送');
+      return;
+    }
+
+    // 构建卡片 elements
+    const elements = [
+      {
+        tag: 'div',
+        text: {
+          content: [
+            `**监控任务：** ${total} 个（${active} 个运行中）`,
+            `**已达目标：** ${reached} 个`,
+          ].join('\n'),
+          tag: 'lark_md',
+        },
+      },
+      { tag: 'hr' },
+      {
+        tag: 'div',
+        text: {
+          content: [
+            `**昨日检查：** ${checks} 次 | 错误：${errors} 次`,
+            `**成功率：** ${successRate}%`,
+          ].join('\n'),
+          tag: 'lark_md',
+        },
+      },
+    ];
+
+    // 昨日降价列表（TASK-MON-06）
+    if (triggeredEntries.length > 0) {
+      elements.push({ tag: 'hr' });
+      const lines = triggeredEntries.map(e =>
+        `• **${e.hotelName}**（${e.city}）→ ¥${e.price}（目标：¥${e.threshold}）${e.checkIn ? `  入住：${e.checkIn}` : ''}`
+      ).join('\n');
+      elements.push({
+        tag: 'div',
+        text: {
+          content: `**📉 昨日降价（${triggeredEntries.length}个）**\n${lines}`,
+          tag: 'lark_md',
+        },
+      });
+    } else {
+      elements.push({ tag: 'hr' });
+      elements.push({
+        tag: 'div',
+        text: { content: '昨日无价格达标任务', tag: 'lark_md' },
       });
     }
+
+    elements.push({
+      tag: 'note',
+      elements: [{
+        tag: 'plain_text',
+        content: `汇报时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`,
+      }],
+    });
+
+    await feishuAPI.sendCard(config.feishu.notifyOpenId, {
+      config: { wide_screen_mode: true },
+      header: {
+        title: { content: `📊 PriceWatcher 每日汇报 ${today}`, tag: 'plain_text' },
+        template: 'blue',
+      },
+      elements,
+    });
+
+    console.log('[DailyReport] ✅ 发送成功');
   } catch (err) {
     console.error('[DailyReport] 失败:', err.message);
   }

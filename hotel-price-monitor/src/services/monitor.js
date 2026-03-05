@@ -1,8 +1,8 @@
 /**
- * 监控服务 v2
- * - 支持多适配器调度
- * - 价格历史本地持久化
- * - 智能调度（随机延迟、夜间暂停、失败重试）
+ * 监控服务 v3
+ * TASK-MON-02: history.note 字段（触发来源标记）
+ * TASK-MON-04: 参数从 config 文件读取，不再硬编码
+ * TASK-MON-05: 适配器连续失败告警
  */
 
 const fs = require('fs');
@@ -11,22 +11,54 @@ const AdapterManager = require('../adapters/AdapterManager');
 const FeishuAPI = require('../api/feishu');
 
 const STATE_PATH = path.join(__dirname, '../../../ctrip-monitor-state.json');
-const LOG_DIR = path.join(__dirname, '../../../logs');
+const CONFIG_PATH = path.join(__dirname, '../../../ctrip-monitor-config.json');
+const LOG_DIR    = path.join(__dirname, '../../../logs');
 
-// 确保日志目录存在
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+
+// 读取全局配置（TASK-MON-04）
+function loadGlobalConfig() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    const g = raw.globalSettings || {};
+    return {
+      batchSize:           g.batchSize           ?? 15,
+      batchDelayMin:       (g.batchDelayMinutes  ?? [5, 10])[0],
+      batchDelayMax:       (g.batchDelayMinutes  ?? [5, 10])[1],
+      taskDelaySecMin:     (g.randomDelaySeconds ?? [1,  5])[0],
+      taskDelaySecMax:     (g.randomDelaySeconds ?? [1,  5])[1],
+      maxHistoryPerTask:   g.maxHistoryPerTask   ?? 200,
+      maxRetries:          g.retryPolicy?.maxRetries ?? 3,
+      nightPauseStart:     (g.nightPauseHours    ?? [2, 6])[0],
+      nightPauseEnd:       (g.nightPauseHours    ?? [2, 6])[1],
+      failAlertThreshold:  g.failAlertThreshold  ?? 5,   // 连续失败多少次告警
+    };
+  } catch (err) {
+    console.warn('[Monitor] 读取 config 失败，使用默认值:', err.message);
+    return {
+      batchSize: 15, batchDelayMin: 5, batchDelayMax: 10,
+      taskDelaySecMin: 1, taskDelaySecMax: 5,
+      maxHistoryPerTask: 200, maxRetries: 3,
+      nightPauseStart: 2, nightPauseEnd: 6, failAlertThreshold: 5,
+    };
+  }
+}
 
 class MonitorService {
   constructor(config) {
     this.config = config;
+    this.cfg = loadGlobalConfig();  // TASK-MON-04
     this.adapterManager = new AdapterManager(config);
     this.feishuOpenId = config.feishu?.notifyOpenId || '';
 
-    // 预初始化飞书客户端（避免每次通知都重新创建）
-    // TASK-MON-03：确认 config.feishu 注入正确
+    // 适配器连续失败计数（TASK-MON-05）
+    this.adapterFailCounts = {};
+    this.lastFailAlertAt   = {};
+
+    // 预初始化飞书客户端
     if (config.feishu?.appId && config.feishu?.appSecret) {
       this.feishu = new FeishuAPI(config.feishu.appId, config.feishu.appSecret);
-      console.log('[Monitor] 飞书客户端初始化成功');
+      console.log('[Monitor] ✅ 飞书客户端初始化成功');
     } else {
       this.feishu = null;
       console.warn('[Monitor] ⚠️  飞书配置缺失（FEISHU_APP_ID / FEISHU_APP_SECRET），通知将不可用');
@@ -35,77 +67,80 @@ class MonitorService {
 
   // ==================== 核心：执行单个任务 ====================
 
-  async executeTask(task) {
-    console.log(`\n[Monitor] ▶ 开始: ${task.hotelName} (${task.checkIn}~${task.checkOut})`);
+  /**
+   * @param {Object} task
+   * @param {string} [source] - 触发来源：'scheduled' | 'forced' | 'manual'（TASK-MON-02）
+   */
+  async executeTask(task, source = 'scheduled') {
+    console.log(`\n[Monitor] ▶ 开始: ${task.hotelName} (${task.checkIn}~${task.checkOut}) [${source}]`);
 
-    // 1. 调用适配器获取价格
     const result = await this.adapterManager.queryPrice(task);
 
     if (!result.success) {
+      this._trackAdapterFail(task.provider || 'ctrip', result.error);
       this._log('error', task, null, result.error);
       return { success: false, taskId: task.id, error: result.error };
     }
+
+    // 适配器成功，重置失败计数（TASK-MON-05）
+    this._resetAdapterFail(task.provider || 'ctrip');
 
     const { price, priceOptions } = result.data;
     const triggered = price !== null && price < task.threshold.value;
 
     console.log(`[Monitor] 价格: ¥${price} | 目标: ¥${task.threshold.value} | ${triggered ? '🎉 触发!' : '未触发'}`);
 
-    // 2. 更新本地状态
-    this._updateState(task, price, priceOptions, triggered);
+    // 传入 source，写入 note 字段（TASK-MON-02）
+    this._updateState(task, price, priceOptions, triggered, source);
 
-    // 3. 触发飞书通知
     if (triggered) {
       await this._notify(task, price, priceOptions);
     }
 
-    // 4. 写入日志
     this._log('success', task, price, null);
 
     return { success: true, taskId: task.id, price, triggered };
   }
 
-  // ==================== 批量执行（带智能调度）====================
+  // ==================== 批量执行 ====================
 
   async runAll() {
-    // 夜间暂停 (02:00 - 06:00 北京时间)
     if (this._isNightTime()) {
-      console.log('[Monitor] 🌙 夜间暂停模式 (02:00-06:00)，跳过本次执行');
+      console.log('[Monitor] 🌙 夜间暂停模式，跳过本次执行');
       return [];
     }
 
-    // 加载任务列表
     const tasks = this._loadTasks();
     const pendingTasks = tasks.filter(t => this._shouldCheck(t));
 
     console.log(`[Monitor] 共 ${tasks.length} 个任务，本次需检查 ${pendingTasks.length} 个`);
 
     const results = [];
+    const maxRetries = this.cfg.maxRetries;
 
     for (const task of pendingTasks) {
-      // 失败重试（最多 3 次，间隔递增）
-      let result = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        result = await this.executeTask(task);
-        if (result.success) break;
+      // 判断 source：lastCheckedAt=1970 表示强制检查
+      const isForced = task.lastCheckedAt && new Date(task.lastCheckedAt).getFullYear() === 1970;
+      const source = isForced ? 'forced' : 'scheduled';
 
-        if (attempt < 3) {
+      let result = null;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        result = await this.executeTask(task, source);
+        if (result.success) break;
+        if (attempt < maxRetries) {
           const waitMs = attempt * 5000;
           console.log(`[Monitor] 第 ${attempt} 次失败，${waitMs / 1000}s 后重试...`);
           await this._sleep(waitMs);
         }
       }
-
       results.push(result);
 
-      // 随机延迟 2-6 秒，避免被携程封禁
-      const delay = 2000 + Math.random() * 4000;
-      await this._sleep(delay);
+      // 任务间随机延迟（TASK-MON-04：从 config 读取）
+      const delayMs = (this.cfg.taskDelaySecMin + Math.random() * (this.cfg.taskDelaySecMax - this.cfg.taskDelaySecMin)) * 1000;
+      await this._sleep(delayMs);
     }
 
-    // 打印健康报告
     console.log('\n[Monitor] 适配器健康状态:', JSON.stringify(this.adapterManager.getHealthReport(), null, 2));
-
     return results;
   }
 
@@ -123,16 +158,17 @@ class MonitorService {
 
   _shouldCheck(task) {
     if (!task.lastCheckedAt) return true;
-
     const lastCheck = new Date(task.lastCheckedAt);
     const now = new Date();
     const diffMin = (now - lastCheck) / 1000 / 60;
     const freqMin = task.frequencyMinutes || 60;
-
     return diffMin >= freqMin;
   }
 
-  _updateState(task, price, priceOptions, triggered) {
+  /**
+   * TASK-MON-02：history 记录增加 note 字段（触发来源）
+   */
+  _updateState(task, price, priceOptions, triggered, source = 'scheduled') {
     try {
       const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
       const t = state.monitors.find(m => m.id === task.id);
@@ -144,12 +180,21 @@ class MonitorService {
       t.currentPriceOptions = priceOptions || [];
       t.lastStatus = triggered ? 'below_threshold' : 'above_threshold';
 
-      // 追加历史记录（最多保留 200 条）
+      // 追加历史记录，携带 note 字段（TASK-MON-02）
       if (!t.history) t.history = [];
-      t.history.push({ ts: now, price, triggered });
-      if (t.history.length > 200) t.history = t.history.slice(-200);
+      t.history.push({
+        ts: now,
+        price,
+        triggered,
+        note: source,   // 'scheduled' | 'forced' | 'manual'
+      });
 
-      // 更新元数据
+      // 最大保留条数从 config 读取（TASK-MON-04）
+      const maxHistory = this.cfg.maxHistoryPerTask;
+      if (t.history.length > maxHistory) {
+        t.history = t.history.slice(-maxHistory);
+      }
+
       state.metadata = state.metadata || {};
       state.metadata.lastSchedulerRun = now;
 
@@ -164,7 +209,6 @@ class MonitorService {
   async _notify(task, price, priceOptions) {
     console.log(`[Monitor] 📨 发送飞书通知: ${task.hotelName} ¥${price}`);
 
-    // TASK-MON-03：使用预初始化的客户端，若未初始化则打印警告跳过
     if (!this.feishu) {
       console.warn('[Monitor] 飞书客户端未初始化，跳过通知');
       return;
@@ -184,7 +228,7 @@ class MonitorService {
         checkInDate: task.checkIn,
         currentPrice: price,
         threshold: task.threshold.value,
-        link: task.link || '',          // TASK-MON-01：传入任务真实链接
+        link: task.link || '',
       });
 
       if (result.success) {
@@ -197,12 +241,70 @@ class MonitorService {
     }
   }
 
+  // ==================== 适配器失败追踪（TASK-MON-05）====================
+
+  _trackAdapterFail(adapterName, error) {
+    this.adapterFailCounts[adapterName] = (this.adapterFailCounts[adapterName] || 0) + 1;
+    const count = this.adapterFailCounts[adapterName];
+    const threshold = this.cfg.failAlertThreshold;
+
+    console.warn(`[Monitor] 适配器 ${adapterName} 连续失败 ${count} 次`);
+
+    if (count >= threshold) {
+      const lastAlert = this.lastFailAlertAt[adapterName] || 0;
+      const now = Date.now();
+      // 每小时最多告警一次
+      if (now - lastAlert > 3600000) {
+        this.lastFailAlertAt[adapterName] = now;
+        this._sendAdapterFailAlert(adapterName, count, error).catch(() => {});
+      }
+    }
+  }
+
+  _resetAdapterFail(adapterName) {
+    if (this.adapterFailCounts[adapterName]) {
+      console.log(`[Monitor] 适配器 ${adapterName} 恢复正常，重置失败计数`);
+      this.adapterFailCounts[adapterName] = 0;
+    }
+  }
+
+  async _sendAdapterFailAlert(adapterName, count, lastError) {
+    if (!this.feishu || !this.feishuOpenId) return;
+
+    console.warn(`[Monitor] 🚨 发送适配器告警: ${adapterName} 连续失败 ${count} 次`);
+
+    const card = {
+      config: { wide_screen_mode: true },
+      header: {
+        title: { content: '⚠️ 适配器异常告警', tag: 'plain_text' },
+        template: 'red',
+      },
+      elements: [{
+        tag: 'div',
+        text: {
+          content: [
+            `**适配器**: ${adapterName}`,
+            `**连续失败**: ${count} 次`,
+            `**最后错误**: ${lastError || '未知'}`,
+            `**建议**: 检查携程页面是否结构变化，或手动测试 /api/monitor/health`,
+          ].join('\n'),
+          tag: 'lark_md',
+        },
+      }],
+    };
+
+    try {
+      await this.feishu.sendCard(this.feishuOpenId, card);
+    } catch (err) {
+      console.error('[Monitor] 告警发送失败:', err.message);
+    }
+  }
+
   // ==================== 工具方法 ====================
 
   _isNightTime() {
-    const hour = new Date().getUTCHours() + 8; // 北京时间
-    const bjtHour = hour >= 24 ? hour - 24 : hour;
-    return bjtHour >= 2 && bjtHour < 6;
+    const hour = (new Date().getUTCHours() + 8) % 24;
+    return hour >= this.cfg.nightPauseStart && hour < this.cfg.nightPauseEnd;
   }
 
   _sleep(ms) {
@@ -218,9 +320,8 @@ class MonitorService {
       taskId: task.id,
       hotel: task.hotelName,
       price,
-      error
+      error,
     }) + '\n';
-
     fs.appendFileSync(logFile, line);
   }
 }
