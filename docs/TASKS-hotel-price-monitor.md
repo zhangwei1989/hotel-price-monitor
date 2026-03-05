@@ -58,7 +58,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-02：历史记录增加 note 字段
+#### ✅ TASK-MON-02：历史记录增加 note 字段
 
 **背景：** history 记录的 `note` 字段目前始终为空（`{ ts, price, triggered }`），信息量不足  
 **目标：** 记录触发来源，便于后续排查
@@ -90,7 +90,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-04：批次参数配置化
+#### ✅ TASK-MON-04：批次参数配置化
 
 **背景：** 多个关键参数目前硬编码，不易调整
 
@@ -111,7 +111,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-05：适配器连续失败告警
+#### ✅ TASK-MON-05：适配器连续失败告警
 
 **背景：** 若携程页面结构变化导致 CtripAdapter 持续失败，应及时告警  
 **规则：** 某适配器连续失败 ≥ 5 次 → 发飞书告警（每小时最多发一次）
@@ -134,7 +134,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-06：每日汇报增加昨日降价列表
+#### ✅ TASK-MON-06：每日汇报增加昨日降价列表
 
 **背景：** 当前汇报只有统计数字，无法知道昨天具体哪些酒店降价  
 **实现：** 读取昨日日志文件（`logs/monitor-YYYY-MM-DD.log`），筛选 `triggered=true` 的记录
@@ -151,7 +151,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-07：日志查询接口
+#### ✅ TASK-MON-07：日志查询接口
 
 **接口：** `GET /api/logs?date=2026-03-06&level=error&page=1&pageSize=50`  
 **实现：** 读取对应日期 JSONL 文件，解析后分页返回  
