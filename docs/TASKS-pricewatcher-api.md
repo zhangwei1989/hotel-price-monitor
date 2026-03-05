@@ -30,7 +30,7 @@
 
 ---
 
-#### TASK-API-01：批量删除任务
+#### ✅ TASK-API-01：批量删除任务
 
 **接口：** `POST /api/task-actions/batch/delete`  
 **请求体：** `{ "ids": ["id1", "id2"] }`  
@@ -65,7 +65,7 @@
 
 ---
 
-#### TASK-API-03：批量立即检查
+#### ✅ TASK-API-03：批量立即检查
 
 **接口：** `POST /api/task-actions/batch/check-now`  
 **请求体：** `{ "ids": ["id1", "id2"] }`  
