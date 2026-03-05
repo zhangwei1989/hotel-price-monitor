@@ -9,7 +9,7 @@ import {
   EyeOutlined, ThunderboltOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { fetchTasks, deleteTask } from '../api/tasks';
-import { checkNow, fetchSummary, batchPause, batchResume, batchDelete } from '../api/taskActions';
+import { checkNow, fetchSummary, batchPause, batchResume, batchDelete, batchCheckNow } from '../api/taskActions';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
@@ -127,6 +127,24 @@ export default function Tasks() {
       load();
     } catch {
       message.error('批量恢复失败');
+    } finally {
+      setBatchLoading(null);
+    }
+  }
+
+  async function handleBatchCheckNow() {
+    setBatchLoading('checkNow');
+    try {
+      const { triggered, failed } = await batchCheckNow(selectedIds);
+      if (failed > 0) {
+        message.warning(`已标记 ${triggered} 个，${failed} 个失败`);
+      } else {
+        message.success(`已标记 ${triggered} 个任务立即检查`);
+      }
+      setSelectedIds([]);
+      load();
+    } catch {
+      message.error('批量立即检查失败');
     } finally {
       setBatchLoading(null);
     }
@@ -353,6 +371,15 @@ export default function Tasks() {
                 已选 {selectedIds.length} 项
               </span>
               <div style={{ width: 1, height: 16, background: '#1f3a5c' }} />
+              <Button
+                size="small"
+                loading={batchLoading === 'checkNow'}
+                disabled={!!batchLoading}
+                onClick={handleBatchCheckNow}
+                style={{ fontSize: 12, borderColor: '#2a3a4a', background: '#111', color: '#f59e0b', borderRadius: 6 }}
+              >
+                批量检查
+              </Button>
               <Button
                 size="small"
                 loading={batchLoading === 'pause'}

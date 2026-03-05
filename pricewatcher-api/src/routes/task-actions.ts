@@ -148,6 +148,68 @@ router.post('/batch/resume', async (req, res) => {
   }
 });
 
+// ── POST /api/task-actions/batch/delete ──────────────────────
+// 批量删除任务（TASK-API-01）
+router.post('/batch/delete', async (req, res) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供任务 ID 列表' });
+    }
+
+    const results = await Promise.all(
+      ids.map(id =>
+        taskService.deleteTask(id)
+          .then(ok => ({ id, ok: !!ok }))
+          .catch(() => ({ id, ok: false }))
+      )
+    );
+
+    const deleted = results.filter(r => r.ok).length;
+    const failed = results.filter(r => !r.ok).length;
+
+    res.json({ deleted, failed, results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '批量删除失败' });
+  }
+});
+
+// ── POST /api/task-actions/batch/check-now ───────────────────
+// 批量立即检查（TASK-API-03）
+router.post('/batch/check-now', async (req, res) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供任务 ID 列表' });
+    }
+
+    const results = await Promise.all(
+      ids.map(id =>
+        taskService.updateTask(id, {
+          lastCheckedAt: new Date(0).toISOString(),
+          lastStatus: 'pending',
+        } as any)
+          .then(t => ({ id, ok: !!t }))
+          .catch(() => ({ id, ok: false }))
+      )
+    );
+
+    const triggered = results.filter(r => r.ok).length;
+    const failed = results.filter(r => !r.ok).length;
+
+    res.json({
+      triggered,
+      failed,
+      results,
+      message: `已标记 ${triggered} 个任务立即检查，下次调度周期将优先执行`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '批量立即检查失败' });
+  }
+});
+
 // ── GET /api/task-actions/stats/summary ──────────────────────
 // 获取全局统计摘要
 router.get('/stats/summary', async (req, res) => {

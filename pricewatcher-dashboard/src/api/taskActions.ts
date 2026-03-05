@@ -41,10 +41,11 @@ export async function fetchSummary() {
 }
 
 export async function batchDelete(ids: string[]) {
-  // 并发删除，收集结果
-  const results = await Promise.allSettled(
-    ids.map(id => http.delete(`/api/tasks/${id}`))
-  );
-  const failed = results.filter(r => r.status === 'rejected').length;
-  return { deleted: ids.length - failed, failed };
+  const resp = await http.post('/api/task-actions/batch/delete', { ids });
+  return resp.data as { deleted: number; failed: number; results: { id: string; ok: boolean }[] };
+}
+
+export async function batchCheckNow(ids: string[]) {
+  const resp = await http.post('/api/task-actions/batch/check-now', { ids });
+  return resp.data as { triggered: number; failed: number; message: string };
 }
