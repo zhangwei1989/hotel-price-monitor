@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Button, Card, Col, Layout, Row, Space,
+  Button, Card, Col, Row, Space,
   Table, Tag, Typography, List, Statistic,
   Modal, InputNumber, message, Tooltip,
 } from 'antd';
 import {
-  ArrowLeftOutlined, LogoutOutlined, LinkOutlined,
+  ArrowLeftOutlined, LinkOutlined,
   ThunderboltOutlined, CheckCircleFilled, SyncOutlined,
   PauseCircleFilled, EditOutlined, ClockCircleOutlined,
 } from '@ant-design/icons';
@@ -14,9 +14,7 @@ import { fetchHistory, fetchTask } from '../api/tasks';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { checkNow, updateThreshold, updateFrequency } from '../api/taskActions';
-
-const { Header, Content } = Layout;
-const { Text } = Typography;
+import { AppLayout } from '../components/AppLayout';
 
 // ── 小工具：Info 行 ───────────────────────────────────────────
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -78,12 +76,6 @@ export default function TaskDetail() {
     }
   }
 
-  function logout() {
-    localStorage.removeItem('pw_token');
-    sessionStorage.removeItem('pw_token');
-    window.location.href = '/login';
-  }
-
   async function handleSaveFreq() {
     if (!newFreq || newFreq < 10) return;
     setSavingFreq(true);
@@ -103,26 +95,8 @@ export default function TaskDetail() {
   const below = task?.lastPrice != null && task?.lastPrice < task?.threshold?.value;
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#0a0a0a' }}>
-      {/* Header */}
-      <Header style={{
-        background: '#000',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottom: '1px solid #1a1a1a',
-        padding: '0 32px',
-      }}>
-        <Space size={10}>
-          <div style={{ width: 22, height: 22, borderRadius: 5, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: '#000' }} />
-          </div>
-          <Text style={{ color: '#ededed', fontWeight: 600, fontSize: 15, letterSpacing: -0.3 }}>PriceWatcher</Text>
-        </Space>
-        <Button type="text" icon={<LogoutOutlined />} onClick={logout} style={{ color: '#555', fontSize: 13 }}>退出</Button>
-      </Header>
-
-      <Content style={{ padding: '28px 40px' }}>
+    <AppLayout>
+      <div style={{ padding: '28px 40px' }}>
         {/* 返回 */}
         <Button
           type="text"
@@ -305,7 +279,7 @@ export default function TaskDetail() {
             </Card>
           </>
         )}
-      </Content>
+      </div>
 
       {/* 修改检查频率弹窗 */}
       <Modal
@@ -376,6 +350,6 @@ export default function TaskDetail() {
           />
         </div>
       </Modal>
-    </Layout>
+    </AppLayout>
   );
 }

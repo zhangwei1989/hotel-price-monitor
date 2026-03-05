@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  Button, Card, Col, Input, Layout, Row,
-  Space, Table, Tag, Typography, Statistic, message,
+  Button, Card, Col, Input,
+  Row, Space, Table, Tag, Statistic, message,
 } from 'antd';
 import {
-  SearchOutlined, ReloadOutlined, LogoutOutlined,
+  SearchOutlined, ReloadOutlined,
   CheckCircleFilled, SyncOutlined, PauseCircleFilled,
   EyeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -13,9 +13,7 @@ import { checkNow, fetchSummary } from '../api/taskActions';
 import { useNavigate } from 'react-router-dom';
 import { PauseResumeButton } from '../components/PauseResumeButton';
 import { Filters } from '../components/Filters';
-
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+import { AppLayout } from '../components/AppLayout';
 
 export default function Tasks() {
   const [loading, setLoading] = useState(false);
@@ -161,12 +159,6 @@ export default function Tasks() {
     },
   ];
 
-  function logout() {
-    localStorage.removeItem('pw_token');
-    sessionStorage.removeItem('pw_token');
-    window.location.href = '/login';
-  }
-
   function resetFilters() {
     setCity(undefined); setStatus(undefined); setEnabled(undefined);
     setCheckInRange(undefined); setPriceMin(undefined); setPriceMax(undefined);
@@ -182,29 +174,8 @@ export default function Tasks() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#0a0a0a' }}>
-      <Header style={{
-        background: '#000',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottom: '1px solid #1a1a1a',
-        padding: '0 32px',
-      }}>
-        <Space size={10}>
-          <div style={{ width: 22, height: 22, borderRadius: 5, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: '#000' }} />
-          </div>
-          <Title level={5} style={{ margin: 0, color: '#ededed', fontWeight: 600, letterSpacing: -0.3 }}>
-            PriceWatcher
-          </Title>
-        </Space>
-        <Button type="text" icon={<LogoutOutlined />} onClick={logout} style={{ color: '#555', fontSize: 13 }}>
-          退出
-        </Button>
-      </Header>
-
-      <Content style={{ padding: '32px 40px' }}>
+    <AppLayout>
+      <div style={{ padding: '32px 40px' }}>
         {/* Stats */}
         <Row gutter={16} style={{ marginBottom: 28 }}>
           {statCards.map(item => (
@@ -268,7 +239,7 @@ export default function Tasks() {
             onRow={r => ({ onClick: () => navigate(`/tasks/${r.id}`), style: { cursor: 'pointer' } })}
           />
         </Card>
-      </Content>
-    </Layout>
+      </div>
+    </AppLayout>
   );
 }
