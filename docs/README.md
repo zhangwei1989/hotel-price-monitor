@@ -24,9 +24,11 @@
 | [PRD-pricewatcher-api.md](./PRD-pricewatcher-api.md) | 后端需求文档：接口、字段、待开发功能 |
 | [PRD-pricewatcher-dashboard.md](./PRD-pricewatcher-dashboard.md) | 前端需求文档：页面结构、功能、设计规范 |
 | [PRD-hotel-price-monitor.md](./PRD-hotel-price-monitor.md) | 调度引擎需求文档：调度逻辑、适配器、飞书通知 |
+| [PRD-order-management.md](./PRD-order-management.md) | 代订订单管理模块需求文档：字段定义、页面结构、统计分析、API 设计 |
 | [TASKS-pricewatcher-api.md](./TASKS-pricewatcher-api.md) | 后端开发任务列表（已完成 + 待开发 + 估时） |
 | [TASKS-pricewatcher-dashboard.md](./TASKS-pricewatcher-dashboard.md) | 前端开发任务列表（已完成 + 待开发 + 估时） |
 | [TASKS-hotel-price-monitor.md](./TASKS-hotel-price-monitor.md) | 调度引擎开发任务列表（已完成 + 待开发 + 估时） |
+| [TASKS-order-management.md](./TASKS-order-management.md) | 代订订单管理模块开发任务（后端6个 + 前端9个，含估时和顺序） |
 
 ---
 
@@ -76,6 +78,26 @@
 - ❌ TASK-DASH-10：响应式布局
 - ❌ TASK-DASH-11：历史记录导出 CSV
 - ❌ TASK-DASH-12：抓取日志页
+
+---
+
+## 代订订单管理模块（新模块，待开发）
+
+后端 6 个任务 + 前端 9 个任务，合计约 32 小时工作量。
+
+| 任务 | 说明 | 估时 |
+|------|------|------|
+| TASK-ORDER-API-01 | OrderService + orders.json 数据层 | 3h |
+| TASK-ORDER-API-02 | 订单 CRUD 路由 | 2h |
+| TASK-ORDER-API-03 | 统计分析路由 | 3h |
+| TASK-ORDER-API-04 | 注册路由到 app.ts | 0.5h |
+| TASK-ORDER-DASH-01 | 前端 API 封装 | 1h |
+| TASK-ORDER-DASH-02 | 订单列表页 | 4h |
+| TASK-ORDER-DASH-03 | 新建/编辑表单 | 5h |
+| TASK-ORDER-DASH-04 | 订单详情页 | 3h |
+| TASK-ORDER-DASH-05 | Header 导航更新 | 0.5h |
+| TASK-ORDER-DASH-06 | 统计分析页 | 6h |
+| ... | P2/P3 任务见任务文档 | — |
 
 ---
 
