@@ -188,6 +188,41 @@ EasyClaw Sub-agent（价格抓取）
 
 ---
 
+## 五、待确认需求
+
+### 闲鱼智能客服实时查价接口
+
+**背景：**  
+后续闲鱼售前 Agent 在对话中需要实时查询酒店价格。当缓存数据陈旧时，需要一个能**同步返回最新价格**的接口。
+
+**拟新增接口：**
+
+```
+GET /api/tasks/query?city=长沙&hotelName=玛珂&checkIn=2026-03-10&checkOut=2026-03-11
+```
+
+**逻辑：**
+1. 在任务列表中匹配符合条件的任务
+2. 若 `lastCheckedAt` 在 30 分钟内 → 直接返回 `lastPrice`（缓存命中）
+3. 若数据陈旧 → 触发实时抓取（通过 hotel-price-monitor 同步接口）并等待结果返回
+
+**响应：**
+```json
+{
+  "taskId": "xxx",
+  "hotelName": "长沙玛珂酒店",
+  "lastPrice": 488,
+  "currency": "CNY",
+  "freshness": "cached",        // "cached" | "realtime"
+  "lastCheckedAt": "2026-03-06T01:30:00Z",
+  "priceOptions": [...]
+}
+```
+
+**待确认：** 闲鱼接入计划确定后再开发，当前不实现。
+
+---
+
 ## 五、非功能需求
 
 | 项目 | 要求 |

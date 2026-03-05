@@ -79,6 +79,14 @@
 
 ---
 
+## 待确认需求（暂不开发）
+
+| 需求 | 涉及项目 | 文档位置 |
+|------|---------|---------|
+| 闲鱼智能客服实时查价集成 | hotel-price-monitor、pricewatcher-api、新建闲鱼 Agent | PRD-hotel-price-monitor.md §六、PRD-pricewatcher-api.md §五 |
+
+---
+
 ## 下一步建议
 
 **前端：** 从 **TASK-DASH-01（添加任务 Modal）** 开始，同步进行 **TASK-API-02（字段校验）** 配合联调。  
