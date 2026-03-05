@@ -121,7 +121,7 @@ export async function deleteTask(id: string) {
 
 ---
 
-#### TASK-DASH-05：空状态引导
+#### ✅ TASK-DASH-05：空状态引导
 
 **场景：** 任务列表为空时  
 **UI：** 居中展示图标 + "暂无监控任务" + "添加第一个任务" 按钮  
@@ -131,7 +131,7 @@ export async function deleteTask(id: string) {
 
 ---
 
-#### TASK-DASH-06：任务列表自动刷新
+#### ✅ TASK-DASH-06：任务列表自动刷新
 
 **实现：** 页面加载后每 60 秒自动调用一次 `load()`  
 **注意：** 页面卸载时清除定时器（useEffect 返回 cleanup）
@@ -147,7 +147,7 @@ useEffect(() => {
 
 ---
 
-#### TASK-DASH-07：自动停止日期展示与设置
+#### ✅ TASK-DASH-07：自动停止日期展示与设置
 
 **在任务信息卡（InfoRow）新增：**
 - 显示 `autoStopDate`（若有，格式"YYYY-MM-DD 自动停止"；若无，显示"—"）
