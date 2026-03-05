@@ -31,7 +31,7 @@
 
 ---
 
-#### TASK-MON-01：通知卡片补充真实预订链接
+#### ✅ TASK-MON-01：通知卡片补充真实预订链接
 
 **背景：** 当前飞书降价通知的"前往预订"按钮 URL 写死为 `https://www.ctrip.com`  
 **目标：** 改为使用任务的 `task.link` 字段
@@ -76,7 +76,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-03：确认单任务触发通知路径
+#### ✅ TASK-MON-03：确认单任务触发通知路径
 
 **背景：** `POST /api/monitor/run/:taskId` 调用 `monitorService.executeTask(task)`，`executeTask` 内部有通知逻辑，但 app.js 中未传 feishuOpenId 到 MonitorService 构造函数  
 **验证：** 确认 config 中飞书配置是否正确传入，手动测试一次触发 + 通知  
