@@ -112,6 +112,20 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET /api/orders/export (TASK-ORDER-API-06)
+router.get('/export', async (req, res) => {
+  try {
+    const result = await orderService.listOrders({ pageSize: 9999 });
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Disposition', `attachment; filename="orders-${date}.json"`);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.json({ exportedAt: new Date().toISOString(), total: result.orders.length, orders: result.orders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
 // DELETE /api/orders/:id
 router.delete('/:id', async (req, res) => {
   try {

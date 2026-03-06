@@ -85,6 +85,23 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET /api/tasks/export?format=json (TASK-API-04)
+// 注意：此路由须在 /:id 之前注册
+router.get('/export', async (req, res) => {
+  try {
+    const result = await taskService.listTasks({ pageSize: 9999 });
+    const tasks = result.tasks.map(({ history: _h, ...rest }: any) => rest); // 不含 history
+
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Disposition', `attachment; filename="tasks-${date}.json"`);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.json({ exportedAt: new Date().toISOString(), total: tasks.length, tasks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
 // DELETE /api/tasks/:id
 router.delete('/:id', async (req, res) => {
   try {
