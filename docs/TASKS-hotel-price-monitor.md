@@ -196,7 +196,7 @@ async sendPriceAlert({ userId, hotelName, roomTypeName, checkInDate, currentPric
 
 ---
 
-#### TASK-MON-10：state.json 并发写入保护
+#### ✅ TASK-MON-10：state.json 并发写入保护
 
 **背景：** hotel-price-monitor 和 pricewatcher-api 都会写 state.json，存在并发风险  
 **方案：** 引入文件锁（`proper-lockfile` 或 `lockfile` npm 包），写入前获取锁，写完释放  
