@@ -217,7 +217,7 @@ export async function fetchPreAuthPending()
 
 ---
 
-#### TASK-ORDER-DASH-04：订单详情页（`/orders/:id`）
+#### ✅ TASK-ORDER-DASH-04：订单详情页（`/orders/:id`）
 
 **内容：**
 - 完整字段分区展示
