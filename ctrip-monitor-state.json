@@ -1,8 +1,8 @@
 {
   "version": 2,
   "metadata": {
-    "totalTasks": 1,
-    "activeTasks": 1,
+    "totalTasks": 2,
+    "activeTasks": 2,
     "lastSchedulerRun": null,
     "schedulerEnabled": true
   },
@@ -28,7 +28,7 @@
       "autoStopDate": "2026-03-06",
       "link": "https://hotels.ctrip.com/hotels/detail/?cityEnName=Changsha&cityId=206&hotelId=112974342&checkIn=2026-03-05&checkOut=2026-03-06&adult=2&children=0&crn=1",
       "createdAt": "2026-03-02T15:59:00.000Z",
-      "lastCheckedAt": "2026-03-02T08:00:00.000Z",
+      "lastCheckedAt": "2026-03-05T19:41:08.114Z",
       "lastPrice": 672,
       "lastStatus": "at_threshold",
       "currentPriceOptions": [
@@ -42,19 +42,7 @@
         },
         {
           "price": 776,
-          "description": "赠送礼品 早鸟优惠(原价¥863)"
-        },
-        {
-          "price": 778,
-          "description": "赠送礼品 早鸟优惠(原价¥865)"
-        },
-        {
-          "price": 882,
-          "description": "CITY WALK双人牛排套餐+洗衣折扣+滴滴券"
-        },
-        {
-          "price": 882,
-          "description": "CITY WALK双人牛排套餐+滴滴券"
+          "description": "赠送礼品 早鸟优惠"
         }
       ],
       "history": [
@@ -63,10 +51,90 @@
           "price": 672,
           "status": "below_threshold",
           "note": "首次检查,当前最低价¥672,等于目标价,继续监控是否进一步降价"
+        },
+        {
+          "ts": "2026-03-05T19:41:02.966Z",
+          "price": 660,
+          "status": "below_threshold",
+          "source": "browser",
+          "triggered": true,
+          "note": "🎉 价格 ¥660 低于阈值 ¥672，已发送通知"
+        },
+        {
+          "ts": "2026-03-05T19:41:08.114Z",
+          "price": 672,
+          "status": "at_threshold",
+          "source": "browser",
+          "triggered": false,
+          "note": "当前最低价 ¥672，阈值 ¥672"
         }
       ],
       "enabled": true,
       "pausedAt": null
+    },
+    {
+      "hotelName": "长沙尼依格罗酒店",
+      "city": "长沙",
+      "roomName": "N3尊贵豪华城景大床房",
+      "ratePlanHint": "含双早",
+      "link": "https://hotels.ctrip.com/hotels/detail/?cityEnName=Changsha&cityId=206&hotelId=24773780&checkIn=2026-03-07&checkOut=2026-03-08&adult=2&children=0&crn=1&curr=CNY&barcurr=CNY&masterhotelid_tracelogid=100053755-0a63d016-492352-35109&detailFilters=17%7C1%7E17%7E1*31%7C24773780%7E31%7E24773780*80%7C2%7E80%7E2*29%7C1%7E29%7E1%7C2&display=incavg&subStamp=792&isCT=true&isFlexible=F&isFirstEnterDetail=T",
+      "checkIn": "2026-03-07",
+      "checkOut": "2026-03-08",
+      "nights": 1,
+      "threshold": {
+        "type": "absolute",
+        "value": 1800
+      },
+      "frequencyMinutes": 480,
+      "autoStopDate": "2026-03-08",
+      "type": "hotel",
+      "provider": "ctrip",
+      "currency": "CNY",
+      "enabled": true,
+      "id": "cs-negro-n3-20260307-20260308",
+      "lastCheckedAt": "2026-03-07T07:20:15.199Z",
+      "lastPrice": 1223,
+      "lastStatus": "below_threshold",
+      "currentPriceOptions": [
+        {
+          "price": 1223,
+          "description": "携程最低价（N1豪华城景大床房，到店付款）"
+        }
+      ],
+      "history": [
+        {
+          "ts": "2026-03-06T16:16:42.971Z",
+          "price": 1797,
+          "status": "below_threshold",
+          "source": "browser",
+          "triggered": true,
+          "note": "🎉 价格 ¥1797 低于阈值 ¥1800，已发送通知"
+        },
+        {
+          "ts": "2026-03-06T20:35:52.624Z",
+          "price": 1223,
+          "status": "below_threshold",
+          "source": "browser",
+          "triggered": true,
+          "note": "🎉 价格 ¥1223 低于阈值 ¥1800，已发送通知"
+        },
+        {
+          "ts": "2026-03-07T01:19:25.185Z",
+          "price": 1223,
+          "status": "below_threshold",
+          "source": "browser",
+          "triggered": true,
+          "note": "🎉 价格 ¥1223 低于阈值 ¥1800，已发送通知"
+        },
+        {
+          "ts": "2026-03-07T07:20:15.199Z",
+          "price": 1223,
+          "status": "below_threshold",
+          "source": "browser",
+          "triggered": true,
+          "note": "🎉 价格 ¥1223 低于阈值 ¥1800，已发送通知"
+        }
+      ]
     }
   ]
 }

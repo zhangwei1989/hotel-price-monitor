@@ -13,6 +13,7 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Analytics from './pages/Analytics';
 import AiAdvisor from './pages/AiAdvisor';
+import AgentKnowledge from './pages/AgentKnowledge';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/orders/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
           <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
           <Route path="/ai-advisor" element={<PrivateRoute><AiAdvisor /></PrivateRoute>} />
+          <Route path="/agent-knowledge" element={<PrivateRoute><AgentKnowledge /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>

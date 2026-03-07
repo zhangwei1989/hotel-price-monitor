@@ -6,3 +6,17 @@
 PriceWatcher API running on http://127.0.0.1:3001
 [INFO] 22:44:59 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/task-actions.ts has been modified
 PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 02:45:54 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/tasks.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 02:46:01 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/tasks.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 03:11:27 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/task-actions.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 03:26:58 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/server.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 00:12:58 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/services/FileService.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 00:13:27 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/tasks.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001
+[INFO] 00:13:43 Restarting: /Users/zhangwei/.easyclaw/workspace/pricewatcher-api/src/routes/orders.ts has been modified
+PriceWatcher API running on http://127.0.0.1:3001

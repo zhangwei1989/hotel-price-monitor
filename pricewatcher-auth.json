@@ -4,7 +4,7 @@
     "username": "admin",
     "passwordHash": "531b1b7dd6cf1e2febb0900b19f35a324929833c96fc959efe0953253eae8a20",
     "createdAt": "2026-03-02T17:21:28.533Z",
-    "lastLogin": "2026-03-02T19:50:22.729Z"
+    "lastLogin": "2026-03-04T17:38:07.604Z"
   },
   "jwt": {
     "secret": "9c30f01b9b5cba3f8b099d0568ff2780b61b2bf20648265347d89baf8b2e872f",

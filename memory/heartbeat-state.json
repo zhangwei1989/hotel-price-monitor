@@ -1,0 +1,18 @@
+{
+  "lastChecks": {
+    "hotelPrice": 1741310365,
+    "email": null,
+    "calendar": null,
+    "weather": null
+  },
+  "feishu": {
+    "zhangwei_open_id": "ou_27854f6264caf2db719c6c80ec774a61",
+    "chat_id": "oc_6462b49e84c920abfd42c424b95c3cf0"
+  },
+  "lastNotify": {
+    "time": 1741310365,
+    "target": "feishu:ou_27854f6264caf2db719c6c80ec774a61",
+    "status": "success",
+    "msg": "价格提醒 + 日记 2026-03-06"
+  }
+}
