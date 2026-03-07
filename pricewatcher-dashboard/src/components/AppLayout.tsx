@@ -48,7 +48,7 @@ const NAV_ITEMS = [
   },
   {
     path: '/agent-knowledge',
-    label: '客服知识库',
+    label: 'AI客服',
     icon: (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
