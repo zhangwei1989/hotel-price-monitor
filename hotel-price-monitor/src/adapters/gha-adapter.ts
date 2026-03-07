@@ -95,25 +95,53 @@ export class GhaAdapter extends BaseAdapter {
 
     const options: PriceOption[] = [];
 
-    // ── 价格提取策略（根据 GHA 官网实际结构调整）──────────────
+    // ── 价格提取策略（基于 GHA 官网实际结构 2026-03）──────────────
+    // GHA 官网搜索结果页结构：
+    // - 酒店卡片：.tid-card
+    // - 会员价格：MEMBER RATES FROM + CNY/USD + 数字
+    // - 非会员价格：NON-MEMBER RATES + CNY/USD + 数字
 
-    // 策略1：匹配常见货币格式
-    // USD $123 / EUR €123 / CNY ¥123 / HKD HK$123
+    // 策略1：匹配 "MEMBER RATES FROM CNY 518" 格式
+    const memberPricePattern = /MEMBER\s*RATES?\s*(?:FROM)?\s*(?:CNY|USD|EUR|HKD|SGD)?\s*([\d,]+)/gi;
+    let m;
+    while ((m = memberPricePattern.exec(pageText)) !== null) {
+      const priceNum = parseInt(m[1].replace(/,/g, ''), 10);
+      if (priceNum >= 50 && priceNum <= 999999) {
+        options.push({
+          roomName: '会员价起',
+          price: priceNum,
+          currency: this.detectCurrency(pageText, m.index),
+          description: 'GHA Discovery 会员价',
+        });
+      }
+    }
+
+    // 策略2：匹配 "NON-MEMBER RATES CNY 576" 格式
+    const nonMemberPattern = /NON-?MEMBER\s*RATES?\s*(?:CNY|USD|EUR|HKD|SGD)?\s*([\d,]+)/gi;
+    while ((m = nonMemberPattern.exec(pageText)) !== null) {
+      const priceNum = parseInt(m[1].replace(/,/g, ''), 10);
+      if (priceNum >= 50 && priceNum <= 999999) {
+        options.push({
+          roomName: '非会员价',
+          price: priceNum,
+          currency: this.detectCurrency(pageText, m.index),
+          description: 'GHA Discovery 非会员价',
+        });
+      }
+    }
+
+    // 策略3：匹配通用货币格式（兜底）
     const currencyPatterns = [
+      { pattern: /CNY\s*([\d,]+)/gi, currency: 'CNY' },
       { pattern: /USD\s*\$?\s*([\d,]+)/gi, currency: 'USD' },
-      { pattern: /\$\s*([\d,]+)/gi, currency: 'USD' },
-      { pattern: /EUR\s*€?\s*([\d,]+)/gi, currency: 'EUR' },
-      { pattern: /€\s*([\d,]+)/gi, currency: 'EUR' },
-      { pattern: /CNY\s*[¥￥]?\s*([\d,]+)/gi, currency: 'CNY' },
       { pattern: /[¥￥]\s*([\d,]+)/gi, currency: 'CNY' },
-      { pattern: /HKD\s*(?:HK\$)?\s*([\d,]+)/gi, currency: 'HKD' },
-      { pattern: /HK\$\s*([\d,]+)/gi, currency: 'HKD' },
+      { pattern: /\$\s*([\d,]+)/gi, currency: 'USD' },
     ];
 
     const priceSet = new Set<string>();
+    for (const opt of options) priceSet.add(`${opt.currency}-${opt.price}`);
     
     for (const { pattern, currency } of currencyPatterns) {
-      let m;
       while ((m = pattern.exec(pageText)) !== null) {
         const priceNum = parseInt(m[1].replace(/,/g, ''), 10);
         if (priceNum >= 50 && priceNum <= 999999) {
@@ -124,30 +152,32 @@ export class GhaAdapter extends BaseAdapter {
               roomName: '标准房型',
               price: priceNum,
               currency,
-              description: `GHA Discovery ${currency}`,
+              description: `GHA Discovery`,
             });
           }
         }
       }
     }
 
-    // 策略2：尝试匹配酒店名称 + 价格块
-    // [酒店名]...[价格]...per night
+    // 策略4：尝试匹配酒店名称 + 价格块（用于精确定位）
     const hotelPricePattern = new RegExp(
       params.hotelName.slice(0, 10).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '[\\s\\S]{0,200}?(?:from|起|USD|\\$|€|¥|CNY)\\s*([\\d,]+)',
+      '[\\s\\S]{0,300}?(?:CNY|USD|MEMBER|FROM)\\s*([\\d,]+)',
       'gi'
     );
-    let hm;
-    while ((hm = hotelPricePattern.exec(pageText)) !== null) {
-      const priceNum = parseInt(hm[1].replace(/,/g, ''), 10);
+    while ((m = hotelPricePattern.exec(pageText)) !== null) {
+      const priceNum = parseInt(m[1].replace(/,/g, ''), 10);
       if (priceNum >= 50 && priceNum <= 999999) {
-        options.push({
-          roomName: params.hotelName,
-          price: priceNum,
-          currency: 'USD', // 默认 USD，GHA 官网主要显示美元
-          description: '酒店匹配价格',
-        });
+        const key = `match-${priceNum}`;
+        if (!priceSet.has(key)) {
+          priceSet.add(key);
+          options.push({
+            roomName: params.hotelName,
+            price: priceNum,
+            currency: 'CNY',
+            description: '酒店匹配价格',
+          });
+        }
       }
     }
 
@@ -172,22 +202,54 @@ export class GhaAdapter extends BaseAdapter {
   }
 
   /**
+   * 从文本附近检测货币（根据上下文判断）
+   */
+  private detectCurrency(pageText: string, position: number): string {
+    const context = pageText.slice(Math.max(0, position - 50), position + 50).toUpperCase();
+    if (context.includes('CNY') || context.includes('¥')) return 'CNY';
+    if (context.includes('HKD') || context.includes('HK$')) return 'HKD';
+    if (context.includes('SGD') || context.includes('S$')) return 'SGD';
+    if (context.includes('EUR') || context.includes('€')) return 'EUR';
+    return 'CNY'; // GHA 中国区默认 CNY
+  }
+
+  /**
    * 获取 GHA 官网搜索指令
    * 供 Agent/browser-use 执行
+   * 
+   * 选择器参考（2026-03 验证）：
+   * - 目的地输入框：input.tid-inputSearch
+   * - 入住日期：input.tid-startingDate
+   * - 退房日期：input.tid-endingDate
+   * - 搜索按钮：button.tid-SearchBtn
+   * - 酒店卡片：.tid-card
+   * - 价格区域：.CardPricesWapper h5
    */
   getBrowserInstructions(params: HotelSearchParams): string {
     return `
 1. 访问 https://www.ghadiscovery.com/
-2. 在搜索框输入目的地：${params.city}
-3. 选择入住日期：${params.checkIn}
-4. 选择退房日期：${params.checkOut}
-5. 点击搜索按钮
+2. 在目的地输入框（input.tid-inputSearch）输入：${params.city}
+3. 在入住日期（input.tid-startingDate）选择：${params.checkIn}
+4. 在退房日期（input.tid-endingDate）选择：${params.checkOut}
+5. 点击搜索按钮（button.tid-SearchBtn）
 6. 等待搜索结果加载（3-5秒）
-7. 如果有酒店名称筛选，筛选：${params.hotelName}
-8. 截取页面文本，返回用于价格解析
+7. 在结果页找到酒店：${params.hotelName}
+8. 读取该酒店卡片（.tid-card）中的 MEMBER RATES 和 NON-MEMBER RATES
+9. 返回页面文本或截图
 `.trim();
   }
 }
+
+// GHA 官网选择器常量（供外部使用）
+export const GHA_SELECTORS = {
+  searchInput: 'input.tid-inputSearch',
+  checkInDate: 'input.tid-startingDate',
+  checkOutDate: 'input.tid-endingDate',
+  searchButton: 'button.tid-SearchBtn',
+  hotelCard: '.tid-card',
+  priceWrapper: '.CardPricesWapper',
+  priceValue: '.CardPricesWapper h5',
+};
 
 // 导出单例
 export const ghaAdapter = new GhaAdapter();
