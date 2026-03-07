@@ -310,12 +310,12 @@ export default function Tasks() {
         {/* Table */}
         <Card bordered={false} style={{ background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
           {/* 工具栏 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Space size={8}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <Space size={8} wrap>
               <Input
                 placeholder="搜索酒店名称..."
                 prefix={<SearchOutlined style={{ color: '#444' }} />}
-                style={{ width: 260, background: '#0a0a0a', border: '1px solid #2a2a2a', borderRadius: 6, color: '#ededed' }}
+                style={{ width: 220, minWidth: 160, background: '#0a0a0a', border: '1px solid #2a2a2a', borderRadius: 6, color: '#ededed' }}
                 value={q}
                 onChange={e => setQ(e.target.value)}
                 onPressEnter={() => { setPage(1); load(); }}
@@ -334,7 +334,7 @@ export default function Tasks() {
                 cityOptions={[...new Set(rows.map((r: any) => r.city))]}
               />
             </Space>
-            <Space size={8}>
+            <Space size={8} style={{ flexShrink: 0 }}>
               <Button icon={<ReloadOutlined />} onClick={resetFilters} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>重置</Button>
               <Button icon={<ReloadOutlined />} onClick={load} style={{ fontSize: 12, borderColor: '#2a2a2a', background: '#0a0a0a', color: '#888' }}>刷新</Button>
               <button
@@ -344,6 +344,7 @@ export default function Tasks() {
                   border: 'none', background: '#fff', color: '#000',
                   fontSize: 12, fontWeight: 500, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 5,
+                  whiteSpace: 'nowrap', flexShrink: 0,
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#e5e5e5')}
